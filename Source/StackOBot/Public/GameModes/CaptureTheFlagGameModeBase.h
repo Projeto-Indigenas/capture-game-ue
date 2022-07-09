@@ -1,11 +1,11 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/GameMode.h"
+#include "MatchGameModeBase.h"
 #include "CaptureTheFlagGameModeBase.generated.h"
 
 UCLASS(Abstract, Blueprintable)
-class STACKOBOT_API ACaptureTheFlagGameModeBase : public AGameMode
+class STACKOBOT_API ACaptureTheFlagGameModeBase : public AMatchGameModeBase
 {
 	GENERATED_BODY()
 };

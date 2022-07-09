@@ -12,13 +12,35 @@ protected:
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly)
 	float _movementSpeedScale = 100.0f;
 	
-	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	UPROPERTY(BlueprintReadWrite)
 	float _movementSpeed;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere)
-	float _leanHorizontal;
+	UPROPERTY(BlueprintReadWrite)
+	bool _primaryAttack;
+
+	UPROPERTY(BlueprintReadWrite)
+	bool _evadeAttack;
+
+	UPROPERTY(BlueprintReadWrite)
+	bool _takeHit;
+
+	UFUNCTION(BlueprintCallable)
+	void NotifyPrimaryAttackFinished();
+
+	UFUNCTION(BlueprintCallable)
+	void NotifyEvadeAttackFinished();
 	
 public:
+	TFunction<void()> PrimaryAttackFinished;
+	TFunction<void()> EvadeAttackFinished;
+	
 	bool SetMovementSpeed(float speed);
-	void SetLeanHorizontal(float horizontal);
+	bool PrimaryAttack();
+	bool EvadeAttack();
+	bool TakeHit();
+
+	float GetMovementSpeed() const;
+	bool IsAttacking() const;
+	bool IsEvading() const;
+	bool IsTakingHit() const;
 };

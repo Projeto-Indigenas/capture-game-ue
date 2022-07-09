@@ -13,7 +13,7 @@ class STACKOBOT_API APlayerCameraActor : public AActor
 
 	TWeakObjectPtr<AActor> _targetActor;
 
-	FAcceleratedVector2D _acceleratedLocation;
+	FAcceleratedVector _acceleratedLocation;
 	
 protected:
 	UPROPERTY(BlueprintReadWrite)
