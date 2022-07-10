@@ -30,11 +30,15 @@ void APlayerCharacterControllerBase::LogOnScreen(const FString& message) const
 void APlayerCharacterControllerBase::MoveVertical(const float vertical)
 {
 	_directionVector.X = vertical;
+
+	_playerCharacter->SetMovementDirection(_directionVector);
 }
 
 void APlayerCharacterControllerBase::MoveHorizontal(const float horizontal)
 {
 	_directionVector.Y = horizontal;
+
+	_playerCharacter->SetMovementDirection(_directionVector);
 }
 
 void APlayerCharacterControllerBase::PrimaryAttack()
@@ -45,42 +49,6 @@ void APlayerCharacterControllerBase::PrimaryAttack()
 void APlayerCharacterControllerBase::EvadeAttack()
 {
 	_playerCharacter->EvadeAttack();
-}
-
-void APlayerCharacterControllerBase::BindInputs()
-{
-	if (InputComponent == nullptr) return;
-	if (_isInputBound || !IsLocalPlayerController()) return;
-
-	_isInputBound = true;
-
-	_moveVerticalBinding = InputComponent->BindAxis(TEXT("CharacterMoveVertical"), this,
-		&APlayerCharacterControllerBase::MoveVertical);
-	_moveHorizontalBinding = InputComponent->BindAxis(TEXT("CharacterMoveHorizontal"), this,
-		&APlayerCharacterControllerBase::MoveHorizontal);
-	_primaryAttackBinding = InputComponent->BindAction(TEXT("CharacterPrimaryAttack"), IE_Pressed, this,
-		&APlayerCharacterControllerBase::PrimaryAttack);
-	_evadeAttackBinding = InputComponent->BindAction(TEXT("CharacterEvadeAttack"), IE_Pressed, this,
-		&APlayerCharacterControllerBase::EvadeAttack);
-}
-
-void APlayerCharacterControllerBase::UnbindInputs()
-{
-	if (!_isInputBound || !IsLocalPlayerController()) return;
-
-	_isInputBound = false;
-
-	_directionVector = FVector2D::Zero();
-
-	for (FInputAxisBinding& axisBinding : InputComponent->AxisBindings)
-	{
-		axisBinding.AxisDelegate.Unbind();
-	}
-	
-	InputComponent->AxisBindings.Empty();
-
-	InputComponent->RemoveActionBinding(TEXT("CharacterPrimaryAttack"), IE_Pressed);
-	InputComponent->RemoveActionBinding(TEXT("CharacterEvadeAttack"), IE_Pressed);
 }
 
 void APlayerCharacterControllerBase::TryInitialize(APawn* newPawn)
@@ -144,7 +112,14 @@ void APlayerCharacterControllerBase::SetupInputComponent()
 {
 	Super::SetupInputComponent();
 
-	BindInputs();
+	InputComponent->BindAxis(TEXT("CharacterMoveVertical"), this,
+		&APlayerCharacterControllerBase::MoveVertical);
+	InputComponent->BindAxis(TEXT("CharacterMoveHorizontal"), this,
+		&APlayerCharacterControllerBase::MoveHorizontal);
+	InputComponent->BindAction(TEXT("CharacterPrimaryAttack"), IE_Pressed, this,
+		&APlayerCharacterControllerBase::PrimaryAttack);
+	InputComponent->BindAction(TEXT("CharacterEvadeAttack"), IE_Pressed, this,
+		&APlayerCharacterControllerBase::EvadeAttack);
 }
 
 void APlayerCharacterControllerBase::OnPossess(APawn* inPawn)
@@ -169,19 +144,7 @@ void APlayerCharacterControllerBase::ClientRestart_Implementation(APawn* newPawn
 	TryInitialize(newPawn);
 }
 
-void APlayerCharacterControllerBase::Tick(float DeltaSeconds)
+APlayerCharacterBase* APlayerCharacterControllerBase::GetPlayerCharacter() const
 {
-	Super::Tick(DeltaSeconds);
-
-	if (!IsLocalPlayerController()) return;
-	
-	if (!_playerCharacter.IsValid()) return;
-	
-	if (_directionVector != FVector2D::Zero())
-	{
-		const FVector directionVector(_directionVector, 0.0F);	
-		SetControlRotation(directionVector.Rotation());
-	}
-	
-	_playerCharacter->SetDirectionVector(_directionVector);
+	return _playerCharacter.Get();
 }

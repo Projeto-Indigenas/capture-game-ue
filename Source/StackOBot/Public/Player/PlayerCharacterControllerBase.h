@@ -17,12 +17,6 @@ class STACKOBOT_API APlayerCharacterControllerBase : public APlayerController
 
 	FVector2D _directionVector;
 	
-	bool _isInputBound;
-	FInputAxisBinding _moveVerticalBinding;
-	FInputAxisBinding _moveHorizontalBinding;
-	FInputActionBinding _primaryAttackBinding;
-	FInputActionBinding _evadeAttackBinding;
-	
 	TWeakObjectPtr<APlayerCharacterBase> _playerCharacter;
 	TWeakObjectPtr<APlayerCameraActor> _playerCameraActor;
 
@@ -33,9 +27,6 @@ class STACKOBOT_API APlayerCharacterControllerBase : public APlayerController
 	void PrimaryAttack();
 	void EvadeAttack();
 	
-	void BindInputs();
-	void UnbindInputs();
-
 	void TryInitialize(APawn* newPawn);
 	void OnCharacterDeath();
 
@@ -53,6 +44,6 @@ protected:
 	virtual void ClientRestart_Implementation(APawn* newPawn) override;
 	
 public:
-	virtual void Tick(float DeltaSeconds) override;
+	APlayerCharacterBase* GetPlayerCharacter() const;
 };
 

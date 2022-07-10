@@ -9,19 +9,25 @@ DECLARE_LOG_CATEGORY_EXTERN(PlayerCharacter, Log, All);
 class UWeaponComponent;
 class UPlayerCharacterAnimInstanceBase;
 class APlayerCharacterRagdollBase;
+class FPlayerCharacterClassBase;
 
 UCLASS(Abstract, Blueprintable)
 class STACKOBOT_API APlayerCharacterBase : public ACharacter
 {
 	GENERATED_BODY()
 
+	TSharedPtr<FPlayerCharacterClassBase> _playerCharacterClass;
+	
 	TWeakObjectPtr<UWeaponComponent> _weaponComponent;
 	TWeakObjectPtr<UPlayerCharacterAnimInstanceBase> _animInstance;
 
 	void LogOnScreen(const FString& message) const;
 
 	UFUNCTION(Server, Unreliable)
-	void ReplicateDirectionVector_Server(const FVector2D& directionVector);
+	void ReplicateMovementDirection_Server(const FVector2D& directionVector);
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void ReplicateMovementDirection_Clients(const FVector2D& directionVector);
 
 	UFUNCTION(Server, Unreliable)
 	void ReplicatePrimaryAttack_Server();
@@ -47,9 +53,7 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly)
 	float _initialLifePoints = 100.0f;
-
-	UPROPERTY(Replicated)
-	FVector2D _directionVector;
+	
 
 	UPROPERTY(Replicated)
 	float _currentLifePoints = 100.0f;
@@ -59,9 +63,9 @@ protected:
 public:
 	TDelegate<void()> OnCharacterDeath;
 	
-	virtual void Tick(float DeltaSeconds) override;
+	virtual void Tick(float deltaSeconds) override;
 	
-	void SetDirectionVector(const FVector2D& directionVector);
+	void SetMovementDirection(const FVector2D& directionVector);
 	void PrimaryAttack();
 	void EvadeAttack();
 };

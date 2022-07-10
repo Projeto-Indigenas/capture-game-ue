@@ -3,6 +3,21 @@
 	"EngineAssociation": "5.0",
 	"Category": "",
 	"Description": "",
+	"Modules": [
+		{
+			"Name": "StackOBot",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"AdditionalDependencies": [
+				"Engine"
+			]
+		},
+		{
+			"Name": "StackOBotEditor",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit"
+		}
+	],
 	"Plugins": [
 		{
 			"Name": "ControlRig",
@@ -26,19 +41,7 @@
 			]
 		}
 	],
-	"Modules": [
-		{
-			"Name": "StackOBot",
-			"Type": "Runtime",
-			"LoadingPhase": "Default",
-			"AdditionalDependencies": [
-				"Engine"
-			]
-		},
-		{
-			"Name": "StackOBotEditor",
-			"Type": "Editor",
-			"LoadingPhase": "PostEngineInit"
-		}
+	"TargetPlatforms": [
+		"Windows"
 	]
 }

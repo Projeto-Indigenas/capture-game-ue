@@ -3,7 +3,10 @@
 #include "Components/CapsuleComponent.h"
 #include "Net/UnrealNetwork.h"
 
+#include "Player/PlayerCharacterControllerBase.h"
 #include "Player/PlayerCharacterAnimInstanceBase.h"
+#include "Player/Behaviours/DefaultPlayerCharacterClass.h"
+#include "Player/Behaviours/PlayerCharacterClassBase.h"
 #include "Weapons/WeaponComponent.h"
 
 DEFINE_LOG_CATEGORY(PlayerCharacter);
@@ -25,9 +28,17 @@ void APlayerCharacterBase::LogOnScreen(const FString& message) const
 	UE_LOG(PlayerCharacter, Log, TEXT("%s"), *debugMessage)
 }
 
-void APlayerCharacterBase::ReplicateDirectionVector_Server_Implementation(const FVector2D& directionVector)
+void APlayerCharacterBase::ReplicateMovementDirection_Server_Implementation(const FVector2D& directionVector)
 {
-	_directionVector = directionVector;
+	if (_playerCharacterClass->SetMovementDirection(directionVector))
+	{
+		ReplicateMovementDirection_Clients(directionVector);
+	}
+}
+
+void APlayerCharacterBase::ReplicateMovementDirection_Clients_Implementation(const FVector2D& directionVector)
+{
+	_playerCharacterClass->SetMovementDirection(directionVector);
 }
 
 void APlayerCharacterBase::ReplicatePrimaryAttack_Server_Implementation()
@@ -88,6 +99,13 @@ void APlayerCharacterBase::BeginPlay()
 		TEXT("BeginPlay - initial life points %f"),
 		_initialLifePoints));
 
+	FCharacterClassInitializationInfo classInfo;
+	classInfo.Controller = Cast<APlayerCharacterControllerBase>(GetController());
+	classInfo.MovementSpeed = _movementSpeed;
+	
+	_playerCharacterClass = MakeShared<FDefaultPlayerCharacterClass>();
+	_playerCharacterClass->Initialize(classInfo);
+	
 	_currentLifePoints = _initialLifePoints;
 
 	_weaponComponent = Cast<UWeaponComponent>(GetComponentByClass(UWeaponComponent::StaticClass()));
@@ -113,28 +131,18 @@ void APlayerCharacterBase::BeginPlay()
 	};
 }
 
-void APlayerCharacterBase::Tick(float DeltaSeconds)
+void APlayerCharacterBase::Tick(float deltaSeconds)
 {
-	Super::Tick(DeltaSeconds);
+	Super::Tick(deltaSeconds);
 
-	if (!_animInstance.IsValid()) return;
-
-	if (_animInstance->IsAttacking()) return;
-
-	const FVector directionVector = FVector(_directionVector, 0.0f).GetClampedToMaxSize(1);
-	
-	AddMovementInput(directionVector, _movementSpeed);
-
-	SetAnimMovementSpeed(directionVector.Length());
+	_playerCharacterClass->Tick(deltaSeconds);
 }
 
-void APlayerCharacterBase::SetDirectionVector(const FVector2D& directionVector)
+void APlayerCharacterBase::SetMovementDirection(const FVector2D& directionVector)
 {
-	if (_directionVector != directionVector)
+	if (_playerCharacterClass->SetMovementDirection(directionVector))
 	{
-		_directionVector = directionVector;
-
-		ReplicateDirectionVector_Server(_directionVector);
+		ReplicateMovementDirection_Server(directionVector);
 	}
 }
 
@@ -197,6 +205,5 @@ void APlayerCharacterBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME_CONDITION(APlayerCharacterBase, _directionVector, COND_SimulatedOnly);
 	DOREPLIFETIME(APlayerCharacterBase, _currentLifePoints);
 }
