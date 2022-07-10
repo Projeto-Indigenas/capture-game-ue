@@ -2,8 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "PlayerCharacterClassBase.h"
+#include "DefaultPlayerCharacterClass.generated.h"
 
-class STACKOBOT_API FDefaultPlayerCharacterClass : public FPlayerCharacterClassBase
+UCLASS()
+class STACKOBOT_API UDefaultPlayerCharacterClass : public UPlayerCharacterClassBase
 {
-	
+	GENERATED_BODY()
 };

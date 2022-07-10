@@ -8,15 +8,17 @@ DECLARE_LOG_CATEGORY_EXTERN(PlayerCharacter, Log, All);
 
 class UWeaponComponent;
 class UPlayerCharacterAnimInstanceBase;
+class APlayerCharacterControllerBase;
 class APlayerCharacterRagdollBase;
-class FPlayerCharacterClassBase;
+class UPlayerCharacterClassBase;
 
 UCLASS(Abstract, Blueprintable)
 class STACKOBOT_API APlayerCharacterBase : public ACharacter
 {
 	GENERATED_BODY()
 
-	TSharedPtr<FPlayerCharacterClassBase> _playerCharacterClass;
+	UPROPERTY()
+	UPlayerCharacterClassBase* _playerCharacterClass;
 	
 	TWeakObjectPtr<UWeaponComponent> _weaponComponent;
 	TWeakObjectPtr<UPlayerCharacterAnimInstanceBase> _animInstance;
@@ -28,6 +30,12 @@ class STACKOBOT_API APlayerCharacterBase : public ACharacter
 
 	UFUNCTION(NetMulticast, Unreliable)
 	void ReplicateMovementDirection_Clients(const FVector2D& directionVector);
+
+	UFUNCTION(Server, Unreliable)
+	void ReplicateRequestJump_Server();
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void ReplicateRequestJump_Clients();
 
 	UFUNCTION(Server, Unreliable)
 	void ReplicatePrimaryAttack_Server();
@@ -46,7 +54,7 @@ class STACKOBOT_API APlayerCharacterBase : public ACharacter
 
 	UFUNCTION(NetMulticast, Unreliable)
 	void ReplicateTakeDamage_Client(float damage);
-	
+
 protected:
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly)
 	float _movementSpeed = 1.0f;
@@ -54,18 +62,22 @@ protected:
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly)
 	float _initialLifePoints = 100.0f;
 	
-
 	UPROPERTY(Replicated)
 	float _currentLifePoints = 100.0f;
-	
+
 	virtual void BeginPlay() override;
 
 public:
 	TDelegate<void()> OnCharacterDeath;
+
+	virtual void Initialize(APlayerCharacterControllerBase* controller);
 	
 	virtual void Tick(float deltaSeconds) override;
+	virtual void Falling() override;
+	virtual void OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode) override;
 	
 	void SetMovementDirection(const FVector2D& directionVector);
 	void PrimaryAttack();
 	void EvadeAttack();
+	void RequestJump();
 };

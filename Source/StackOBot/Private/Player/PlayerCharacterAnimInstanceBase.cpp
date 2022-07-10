@@ -49,6 +49,16 @@ bool UPlayerCharacterAnimInstanceBase::TakeHit()
 	return _takeHit = true;
 }
 
+void UPlayerCharacterAnimInstanceBase::SetJumping(const bool jumping)
+{
+	_jump = jumping;
+}
+
+void UPlayerCharacterAnimInstanceBase::SetFalling(bool falling)
+{
+	_falling = falling;
+}
+
 float UPlayerCharacterAnimInstanceBase::GetMovementSpeed() const
 {
 	return _movementSpeed;
@@ -67,4 +77,9 @@ bool UPlayerCharacterAnimInstanceBase::IsEvading() const
 bool UPlayerCharacterAnimInstanceBase::IsTakingHit() const
 {
 	return _takeHit;
+}
+
+bool UPlayerCharacterAnimInstanceBase::IsFalling() const
+{
+	return _jump || _falling;
 }

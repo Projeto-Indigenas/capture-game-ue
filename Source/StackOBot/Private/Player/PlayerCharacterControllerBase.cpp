@@ -30,15 +30,11 @@ void APlayerCharacterControllerBase::LogOnScreen(const FString& message) const
 void APlayerCharacterControllerBase::MoveVertical(const float vertical)
 {
 	_directionVector.X = vertical;
-
-	_playerCharacter->SetMovementDirection(_directionVector);
 }
 
 void APlayerCharacterControllerBase::MoveHorizontal(const float horizontal)
 {
 	_directionVector.Y = horizontal;
-
-	_playerCharacter->SetMovementDirection(_directionVector);
 }
 
 void APlayerCharacterControllerBase::PrimaryAttack()
@@ -49,6 +45,11 @@ void APlayerCharacterControllerBase::PrimaryAttack()
 void APlayerCharacterControllerBase::EvadeAttack()
 {
 	_playerCharacter->EvadeAttack();
+}
+
+void APlayerCharacterControllerBase::Jump()
+{
+	_playerCharacter->Jump();
 }
 
 void APlayerCharacterControllerBase::TryInitialize(APawn* newPawn)
@@ -67,6 +68,7 @@ void APlayerCharacterControllerBase::TryInitialize(APawn* newPawn)
 	if (APlayerCharacterBase* character = Cast<APlayerCharacterBase>(newPawn))
 	{
 		_playerCharacter = character;
+		_playerCharacter->Initialize(this);
 
 		_playerCharacter->OnCharacterDeath.BindUObject(this,
 			&APlayerCharacterControllerBase::OnCharacterDeath);
@@ -120,6 +122,8 @@ void APlayerCharacterControllerBase::SetupInputComponent()
 		&APlayerCharacterControllerBase::PrimaryAttack);
 	InputComponent->BindAction(TEXT("CharacterEvadeAttack"), IE_Pressed, this,
 		&APlayerCharacterControllerBase::EvadeAttack);
+	InputComponent->BindAction(TEXT("CharacterJump"), IE_Pressed, this,
+		&APlayerCharacterControllerBase::Jump);
 }
 
 void APlayerCharacterControllerBase::OnPossess(APawn* inPawn)
@@ -142,6 +146,16 @@ void APlayerCharacterControllerBase::ClientRestart_Implementation(APawn* newPawn
 		IsValid(newPawn) ? *newPawn->GetName() : TEXT("nullptr")));
 
 	TryInitialize(newPawn);
+}
+
+void APlayerCharacterControllerBase::Tick(float deltaSeconds)
+{
+	Super::Tick(deltaSeconds);
+
+	if (!IsLocalPlayerController()) return;
+	if (!_playerCharacter.IsValid()) return;
+	
+	_playerCharacter->SetMovementDirection(_directionVector);
 }
 
 APlayerCharacterBase* APlayerCharacterControllerBase::GetPlayerCharacter() const

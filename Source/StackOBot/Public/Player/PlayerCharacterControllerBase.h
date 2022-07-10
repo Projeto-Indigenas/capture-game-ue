@@ -26,6 +26,7 @@ class STACKOBOT_API APlayerCharacterControllerBase : public APlayerController
 	void MoveHorizontal(const float horizontal);
 	void PrimaryAttack();
 	void EvadeAttack();
+	void Jump();
 	
 	void TryInitialize(APawn* newPawn);
 	void OnCharacterDeath();
@@ -44,6 +45,8 @@ protected:
 	virtual void ClientRestart_Implementation(APawn* newPawn) override;
 	
 public:
+	virtual void Tick(float deltaSeconds) override;
+	
 	APlayerCharacterBase* GetPlayerCharacter() const;
 };
 

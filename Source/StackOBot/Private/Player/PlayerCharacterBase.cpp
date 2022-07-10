@@ -1,6 +1,7 @@
 ﻿#include "Player/PlayerCharacterBase.h"
 
 #include "Components/CapsuleComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Net/UnrealNetwork.h"
 
 #include "Player/PlayerCharacterControllerBase.h"
@@ -38,7 +39,22 @@ void APlayerCharacterBase::ReplicateMovementDirection_Server_Implementation(cons
 
 void APlayerCharacterBase::ReplicateMovementDirection_Clients_Implementation(const FVector2D& directionVector)
 {
+	if (!IsValid(_playerCharacterClass)) return;
+	
 	_playerCharacterClass->SetMovementDirection(directionVector);
+}
+
+void APlayerCharacterBase::ReplicateRequestJump_Server_Implementation()
+{
+	if (_playerCharacterClass->Jump())
+	{
+		ReplicateRequestJump_Clients();
+	}
+}
+
+void APlayerCharacterBase::ReplicateRequestJump_Clients_Implementation()
+{
+	_playerCharacterClass->Jump();
 }
 
 void APlayerCharacterBase::ReplicatePrimaryAttack_Server_Implementation()
@@ -95,15 +111,24 @@ void APlayerCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 
+	Initialize(Cast<APlayerCharacterControllerBase>(GetController()));
+}
+
+void APlayerCharacterBase::Initialize(APlayerCharacterControllerBase* controller)
+{
+	if (IsValid(_playerCharacterClass)) return;
+	
 	LogOnScreen(FString::Printf(
-		TEXT("BeginPlay - initial life points %f"),
+		TEXT("Initialize - initial life points %f"),
 		_initialLifePoints));
 
+	_playerCharacterClass = NewObject<UDefaultPlayerCharacterClass>(this);
+	
 	FCharacterClassInitializationInfo classInfo;
-	classInfo.Controller = Cast<APlayerCharacterControllerBase>(GetController());
+	classInfo.Controller = controller;
+	classInfo.Character = this;
 	classInfo.MovementSpeed = _movementSpeed;
 	
-	_playerCharacterClass = MakeShared<FDefaultPlayerCharacterClass>();
 	_playerCharacterClass->Initialize(classInfo);
 	
 	_currentLifePoints = _initialLifePoints;
@@ -135,7 +160,31 @@ void APlayerCharacterBase::Tick(float deltaSeconds)
 {
 	Super::Tick(deltaSeconds);
 
+	if (!IsValid(_playerCharacterClass)) return;
+	
 	_playerCharacterClass->Tick(deltaSeconds);
+}
+
+void APlayerCharacterBase::Falling()
+{
+	Super::Falling();
+
+	if (!IsValid(_playerCharacterClass)) return;
+	
+	_playerCharacterClass->OnFalling();
+}
+
+void APlayerCharacterBase::OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode)
+{
+	Super::OnMovementModeChanged(PrevMovementMode, PreviousCustomMode);
+
+	if (const UCharacterMovementComponent* movementComponent = Cast<UCharacterMovementComponent>(GetMovementComponent()))
+	{
+		if (PrevMovementMode == MOVE_Falling && movementComponent->MovementMode == MOVE_Walking)
+		{
+			_playerCharacterClass->OnLanded();
+		}
+	}
 }
 
 void APlayerCharacterBase::SetMovementDirection(const FVector2D& directionVector)
@@ -166,8 +215,16 @@ void APlayerCharacterBase::EvadeAttack()
 	}
 }
 
+void APlayerCharacterBase::RequestJump()
+{
+	if (_playerCharacterClass->Jump())
+	{
+		ReplicateRequestJump_Server();
+	}
+}
+
 void APlayerCharacterBase::TakeAnyDamage(AActor* DamagedActor, float damage, const UDamageType* DamageType,
-	AController* InstigatedBy, AActor* DamageCauser)
+                                         AController* InstigatedBy, AActor* DamageCauser)
 {
 	LogOnScreen(FString::Printf(
 		TEXT("TakeDamage - taking %f points, current life %f, damage cause %s, damage receiver %s"),

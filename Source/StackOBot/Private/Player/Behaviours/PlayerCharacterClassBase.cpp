@@ -4,15 +4,17 @@
 #include "Player/PlayerCharacterBase.h"
 #include "Player/PlayerCharacterControllerBase.h"
 
-void FPlayerCharacterClassBase::Initialize(const FCharacterClassInitializationInfo& info)
+void UPlayerCharacterClassBase::Initialize(const FCharacterClassInitializationInfo& info)
 {
 	_controller = info.Controller;
-	_character = _controller->GetPlayerCharacter();
+	_character = info.Character;
 	_animInstance = Cast<UPlayerCharacterAnimInstanceBase>(_character->GetMesh()->GetAnimInstance());
 	_movementSpeed = info.MovementSpeed;
+
+	_animInstance->SetFalling(_character->bClientWasFalling);
 }
 
-void FPlayerCharacterClassBase::Tick(float deltaSeconds)
+void UPlayerCharacterClassBase::Tick(float deltaSeconds)
 {
 	if (!_isMovingEnabled)
 	{
@@ -22,8 +24,10 @@ void FPlayerCharacterClassBase::Tick(float deltaSeconds)
 	}
 	
 	const FVector directionVector = FVector(_directionVector, 0.0f);
-	
-	if (_directionVector != FVector2D::ZeroVector)
+
+	if (_controller.IsValid() &&
+		_directionVector != FVector2D::ZeroVector &&
+		!_animInstance->IsFalling())
 	{
 		_controller->SetControlRotation(directionVector.Rotation());
 	}
@@ -33,7 +37,18 @@ void FPlayerCharacterClassBase::Tick(float deltaSeconds)
 	_animInstance->SetMovementSpeed(directionVector.Length());
 }
 
-bool FPlayerCharacterClassBase::SetMovementDirection(const FVector2D& directionVector)
+void UPlayerCharacterClassBase::OnFalling()
+{
+	_animInstance->SetFalling(true);
+}
+
+void UPlayerCharacterClassBase::OnLanded()
+{
+	_animInstance->SetJumping(false);
+	_animInstance->SetFalling(false);
+}
+
+bool UPlayerCharacterClassBase::SetMovementDirection(const FVector2D& directionVector)
 {
 	if (_directionVector == directionVector) return false;
 	
@@ -42,8 +57,22 @@ bool FPlayerCharacterClassBase::SetMovementDirection(const FVector2D& directionV
 	return true;
 }
 
-FVector2D FPlayerCharacterClassBase::GetMovementDirection() const
+FVector2D UPlayerCharacterClassBase::GetMovementDirection() const
 {
 	return _directionVector;
+}
+
+bool UPlayerCharacterClassBase::Jump()
+{
+	if (_character->CanJump())
+	{
+		_character->Jump();
+
+		_animInstance->SetJumping(true);
+
+		return true;
+	}
+
+	return false;
 }
 
