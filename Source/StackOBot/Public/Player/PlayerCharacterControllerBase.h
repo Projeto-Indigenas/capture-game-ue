@@ -27,6 +27,8 @@ class STACKOBOT_API APlayerCharacterControllerBase : public APlayerController
 	void PrimaryAttack();
 	void EvadeAttack();
 	void Jump();
+
+	void PickUpItem();
 	
 	void TryInitialize(APawn* newPawn);
 	void OnCharacterDeath();

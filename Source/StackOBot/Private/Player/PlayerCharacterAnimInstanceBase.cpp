@@ -2,6 +2,8 @@
 
 void UPlayerCharacterAnimInstanceBase::NotifyPrimaryAttackFinished()
 {
+	_primaryAttack = false;
+	
 	if (!PrimaryAttackFinished) return;
 	
 	PrimaryAttackFinished();
@@ -9,9 +11,27 @@ void UPlayerCharacterAnimInstanceBase::NotifyPrimaryAttackFinished()
 
 void UPlayerCharacterAnimInstanceBase::NotifyEvadeAttackFinished()
 {
+	_evadeAttack = false;
+	
 	if (!EvadeAttackFinished) return;
 
 	EvadeAttackFinished();
+}
+
+void UPlayerCharacterAnimInstanceBase::NotifyTakeHitFinished()
+{
+	_takeHit = false;
+
+	if (!TakeHitFinished) return;
+
+	TakeHitFinished();
+}
+
+void UPlayerCharacterAnimInstanceBase::NotifyPrimaryAttackHitEnabled(const bool enabled)
+{
+	if (!PrimaryAttackHitEnabled) return;
+
+	PrimaryAttackHitEnabled(enabled);
 }
 
 bool UPlayerCharacterAnimInstanceBase::SetMovementSpeed(float speed)
@@ -39,13 +59,16 @@ bool UPlayerCharacterAnimInstanceBase::EvadeAttack()
 {
 	if (_evadeAttack) return false;
 	
+	_primaryAttack = false;
 	return _evadeAttack = true;
 }
 
 bool UPlayerCharacterAnimInstanceBase::TakeHit()
 {
 	if (_takeHit) return false;
-	
+
+	_primaryAttack = false;
+	_evadeAttack = false;
 	return _takeHit = true;
 }
 
@@ -54,9 +77,14 @@ void UPlayerCharacterAnimInstanceBase::SetJumping(const bool jumping)
 	_jump = jumping;
 }
 
-void UPlayerCharacterAnimInstanceBase::SetFalling(bool falling)
+void UPlayerCharacterAnimInstanceBase::SetFalling(const bool falling)
 {
 	_falling = falling;
+}
+
+void UPlayerCharacterAnimInstanceBase::SetCarryingItem(const bool carrying)
+{
+	_carryingItem = carrying;
 }
 
 float UPlayerCharacterAnimInstanceBase::GetMovementSpeed() const
@@ -77,6 +105,11 @@ bool UPlayerCharacterAnimInstanceBase::IsEvading() const
 bool UPlayerCharacterAnimInstanceBase::IsTakingHit() const
 {
 	return _takeHit;
+}
+
+bool UPlayerCharacterAnimInstanceBase::IsCarryingItem() const
+{
+	return _carryingItem;
 }
 
 bool UPlayerCharacterAnimInstanceBase::IsFalling() const

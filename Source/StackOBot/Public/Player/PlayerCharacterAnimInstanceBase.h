@@ -12,16 +12,16 @@ protected:
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly)
 	float _movementSpeedScale = 100.0f;
 	
-	UPROPERTY(BlueprintReadWrite)
+	UPROPERTY(BlueprintReadOnly)
 	float _movementSpeed;
 
-	UPROPERTY(BlueprintReadWrite)
+	UPROPERTY(BlueprintReadOnly)
 	bool _primaryAttack;
 
-	UPROPERTY(BlueprintReadWrite)
+	UPROPERTY(BlueprintReadOnly)
 	bool _evadeAttack;
 
-	UPROPERTY(BlueprintReadWrite)
+	UPROPERTY(BlueprintReadOnly)
 	bool _takeHit;
 
 	UPROPERTY(BlueprintReadOnly)
@@ -30,15 +30,26 @@ protected:
 	UPROPERTY(BlueprintReadOnly)
 	bool _falling;
 
+	UPROPERTY(BlueprintReadOnly)
+	bool _carryingItem;
+
 	UFUNCTION(BlueprintCallable)
 	void NotifyPrimaryAttackFinished();
 
 	UFUNCTION(BlueprintCallable)
 	void NotifyEvadeAttackFinished();
+
+	UFUNCTION(BlueprintCallable)
+	void NotifyTakeHitFinished();
+
+	UFUNCTION(BlueprintCallable)
+	void NotifyPrimaryAttackHitEnabled(const bool enabled);
 	
 public:
 	TFunction<void()> PrimaryAttackFinished;
+	TFunction<void(bool hitEnabled)> PrimaryAttackHitEnabled;
 	TFunction<void()> EvadeAttackFinished;
+	TFunction<void()> TakeHitFinished;
 	
 	bool SetMovementSpeed(float speed);
 	bool PrimaryAttack();
@@ -46,12 +57,14 @@ public:
 	bool TakeHit();
 	
 	void SetJumping(const bool jumping);
-	void SetFalling(bool falling);
+	void SetFalling(const bool falling);
+	void SetCarryingItem(const bool carrying);
 
 	float GetMovementSpeed() const;
 	bool IsAttacking() const;
 	bool IsEvading() const;
 	bool IsTakingHit() const;
+	bool IsCarryingItem() const;
 
 	bool IsFalling() const;
 };

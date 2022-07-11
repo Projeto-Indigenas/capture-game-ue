@@ -49,7 +49,12 @@ void APlayerCharacterControllerBase::EvadeAttack()
 
 void APlayerCharacterControllerBase::Jump()
 {
-	_playerCharacter->Jump();
+	_playerCharacter->RequestJump();
+}
+
+void APlayerCharacterControllerBase::PickUpItem()
+{
+	_playerCharacter->PickUpItem();
 }
 
 void APlayerCharacterControllerBase::TryInitialize(APawn* newPawn)
@@ -124,6 +129,8 @@ void APlayerCharacterControllerBase::SetupInputComponent()
 		&APlayerCharacterControllerBase::EvadeAttack);
 	InputComponent->BindAction(TEXT("CharacterJump"), IE_Pressed, this,
 		&APlayerCharacterControllerBase::Jump);
+	InputComponent->BindAction(TEXT("CharacterCollect"), IE_Pressed, this,
+		&APlayerCharacterControllerBase::PickUpItem);
 }
 
 void APlayerCharacterControllerBase::OnPossess(APawn* inPawn)

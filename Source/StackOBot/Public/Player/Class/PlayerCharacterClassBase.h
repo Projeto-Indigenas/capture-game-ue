@@ -11,7 +11,8 @@ struct STACKOBOT_API FCharacterClassInitializationInfo
 {
 	APlayerCharacterControllerBase* Controller = nullptr;
 	APlayerCharacterBase* Character = nullptr;
-	float MovementSpeed = 0.0f;
+	float MovementSpeed = 1.0f;
+	float MovementSpeedDebuff = 1.0f;
 };
 
 UCLASS()
@@ -19,15 +20,16 @@ class STACKOBOT_API UPlayerCharacterClassBase : public UObject
 {
 	GENERATED_BODY()
 	
+	FVector2D _directionVector = FVector2D::ZeroVector;
+	float _movementSpeed = 0.0f;
+	float _movementSpeedDebuff = 1.0f;
+
+protected:
 	TWeakObjectPtr<APlayerCharacterControllerBase> _controller;
 	TWeakObjectPtr<APlayerCharacterBase> _character;
 	TWeakObjectPtr<UPlayerCharacterAnimInstanceBase> _animInstance;
-
-	FVector2D _directionVector = FVector2D::ZeroVector;
-	float _movementSpeed = 0.0f;
-
-protected:
-	bool _isMovingEnabled = true;
+	
+	bool _shouldDebuffMovement = false;
 	
 public:
 	virtual void Initialize(const FCharacterClassInitializationInfo& info);
@@ -40,4 +42,9 @@ public:
 	virtual FVector2D GetMovementDirection() const;
 	
 	virtual bool Jump();
+	virtual bool PrimaryAttack();
+	virtual bool EvadeAttack();
+	virtual bool TakeHit();
+
+	virtual void SetCarryingItem(const bool carrying);
 };

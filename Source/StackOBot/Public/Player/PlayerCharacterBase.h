@@ -6,23 +6,25 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(PlayerCharacter, Log, All);
 
-class UWeaponComponent;
-class UPlayerCharacterAnimInstanceBase;
+class AConstructionResourcePieceActorBase;
 class APlayerCharacterControllerBase;
 class APlayerCharacterRagdollBase;
+class AWeaponActorBase;
 class UPlayerCharacterClassBase;
+class UPlayerCharacterAnimInstanceBase;
 
 UCLASS(Abstract, Blueprintable)
 class STACKOBOT_API APlayerCharacterBase : public ACharacter
 {
 	GENERATED_BODY()
 
+	TWeakObjectPtr<AWeaponActorBase> _weaponActor;
+	TWeakObjectPtr<AConstructionResourcePieceActorBase> _resourcePieceAvailableToPick;
+	TWeakObjectPtr<AConstructionResourcePieceActorBase> _carryingPiece;
+	
 	UPROPERTY()
 	UPlayerCharacterClassBase* _playerCharacterClass;
 	
-	TWeakObjectPtr<UWeaponComponent> _weaponComponent;
-	TWeakObjectPtr<UPlayerCharacterAnimInstanceBase> _animInstance;
-
 	void LogOnScreen(const FString& message) const;
 
 	UFUNCTION(Server, Unreliable)
@@ -45,22 +47,53 @@ class STACKOBOT_API APlayerCharacterBase : public ACharacter
 
 	UFUNCTION(Server, Unreliable)
 	void ReplicateEvadeAttack_Server();
-
-	void SetAnimMovementSpeed(float speed) const;
-
+	
 	UFUNCTION()
-	void TakeAnyDamage(AActor* DamagedActor, float damage, const UDamageType* DamageType,
-		AController* InstigatedBy, AActor* DamageCauser);
+	void TakeAnyDamage(AActor* damagedActor, float damage, const UDamageType* damageType,
+		AController* instigatedBy, AActor* damageCauser);
 
 	UFUNCTION(NetMulticast, Unreliable)
-	void ReplicateTakeDamage_Client(float damage);
+	void ReplicateTakeDamage_Clients(float damage);
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void ReplicateCharacterDeath_Clients();
+
+	UFUNCTION(Server, Reliable)
+	void ReplicatePickUpItem_Server();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void ReplicateCarryItem_Clients(AConstructionResourcePieceActorBase* piece);
+
+	UFUNCTION(NetMulticast, Reliable)
+	void ReplicateDropItem_Clients(AConstructionResourcePieceActorBase* piece);
+
+	void TogglePickItem();
+	void CarryItem(AConstructionResourcePieceActorBase* piece);
+	void DropItem(AConstructionResourcePieceActorBase* piece);
+
+	void CharacterDied() const;
+
+	UFUNCTION()
+	void BeginOverlap(UPrimitiveComponent* overlappedComponent, AActor* otherActor,
+		UPrimitiveComponent* otherComp, int32 otherBodyIndex,
+		bool bFromSweep, const FHitResult& sweepResult);
+
+	UFUNCTION()
+	void EndOverlap(UPrimitiveComponent* overlappedComponent, AActor* otherActor,
+		UPrimitiveComponent* otherComp, int32 otherBodyIndex);
 
 protected:
-	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly)
+	UPROPERTY(EditDefaultsOnly)
 	float _movementSpeed = 1.0f;
 
-	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly)
+	UPROPERTY(EditDefaultsOnly)
+	float _movementSpeedDebuff = 1.0f;
+
+	UPROPERTY(EditDefaultsOnly)
 	float _initialLifePoints = 100.0f;
+	
+	UPROPERTY(EditDefaultsOnly)
+	FName _resourceItemSocketName = NAME_None;
 	
 	UPROPERTY(Replicated)
 	float _currentLifePoints = 100.0f;
@@ -80,4 +113,5 @@ public:
 	void PrimaryAttack();
 	void EvadeAttack();
 	void RequestJump();
+	void PickUpItem();
 };

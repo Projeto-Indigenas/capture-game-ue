@@ -1,4 +1,4 @@
-﻿#include "Player/Behaviours/PlayerCharacterClassBase.h"
+﻿#include "Player/Class/PlayerCharacterClassBase.h"
 
 #include "Player/PlayerCharacterAnimInstanceBase.h"
 #include "Player/PlayerCharacterBase.h"
@@ -10,29 +10,24 @@ void UPlayerCharacterClassBase::Initialize(const FCharacterClassInitializationIn
 	_character = info.Character;
 	_animInstance = Cast<UPlayerCharacterAnimInstanceBase>(_character->GetMesh()->GetAnimInstance());
 	_movementSpeed = info.MovementSpeed;
+	_movementSpeedDebuff = info.MovementSpeedDebuff;
 
 	_animInstance->SetFalling(_character->bClientWasFalling);
 }
 
 void UPlayerCharacterClassBase::Tick(float deltaSeconds)
 {
-	if (!_isMovingEnabled)
-	{
-		_animInstance->SetMovementSpeed(0.0f);
-		
-		return;
-	}
+	const float movementSpeedDebuff = _shouldDebuffMovement ? _movementSpeedDebuff : 1.0f;
 	
-	const FVector directionVector = FVector(_directionVector, 0.0f);
+	const FVector directionVector = FVector(_directionVector, 0.0f).GetClampedToMaxSize(1);
 
-	if (_controller.IsValid() &&
-		_directionVector != FVector2D::ZeroVector &&
+	if (_controller.IsValid() && _directionVector != FVector2D::ZeroVector &&
 		!_animInstance->IsFalling())
 	{
 		_controller->SetControlRotation(directionVector.Rotation());
 	}
 	
-	_character->AddMovementInput(directionVector.GetClampedToMaxSize(1), _movementSpeed);
+	_character->AddMovementInput(directionVector, _movementSpeed * movementSpeedDebuff);
 
 	_animInstance->SetMovementSpeed(directionVector.Length());
 }
@@ -74,5 +69,28 @@ bool UPlayerCharacterClassBase::Jump()
 	}
 
 	return false;
+}
+
+bool UPlayerCharacterClassBase::PrimaryAttack()
+{
+	if (_animInstance->IsCarryingItem()) return false;
+	return _animInstance->PrimaryAttack();
+}
+
+bool UPlayerCharacterClassBase::EvadeAttack()
+{
+	if (_animInstance->IsCarryingItem()) return false;
+	return _animInstance->EvadeAttack();
+}
+
+bool UPlayerCharacterClassBase::TakeHit()
+{
+	return _animInstance->TakeHit();
+}
+
+void UPlayerCharacterClassBase::SetCarryingItem(const bool carrying)
+{
+	_shouldDebuffMovement = carrying;
+	_animInstance->SetCarryingItem(carrying);
 }
 
