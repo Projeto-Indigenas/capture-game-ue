@@ -270,7 +270,7 @@ void APlayerCharacterBase::CarryItem(AConstructionResourcePieceActorBase* piece)
 {
 	piece->SetSimulatePhysics(false);
 	
-	const FAttachmentTransformRules rules = FAttachmentTransformRules(EAttachmentRule::KeepWorld, true);
+	const FAttachmentTransformRules rules = FAttachmentTransformRules(EAttachmentRule::KeepWorld, false);
 	piece->AttachToActor(this, rules, _resourceItemSocketName);
 
 	FVector socketLocation;

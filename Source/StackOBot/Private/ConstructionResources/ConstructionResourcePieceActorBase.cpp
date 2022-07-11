@@ -4,7 +4,7 @@ void AConstructionResourcePieceActorBase::BeginPlay()
 {
 	Super::BeginPlay();
 
-	_staticMeshComponent->SetSimulatePhysics(true);
+	SetSimulatePhysics(true);
 }
 
 AConstructionResourcePieceActorBase::AConstructionResourcePieceActorBase()
@@ -16,6 +16,7 @@ AConstructionResourcePieceActorBase::AConstructionResourcePieceActorBase()
 void AConstructionResourcePieceActorBase::SetSimulatePhysics(const bool simulate) const
 {
 	_staticMeshComponent->SetSimulatePhysics(simulate);
-	
-	_staticMeshComponent->SetCollisionEnabled(simulate ? ECollisionEnabled::QueryAndPhysics : ECollisionEnabled::NoCollision);
+
+	const auto collision = simulate ? ECollisionEnabled::PhysicsOnly : ECollisionEnabled::NoCollision;
+	_staticMeshComponent->SetCollisionEnabled(collision);
 }
