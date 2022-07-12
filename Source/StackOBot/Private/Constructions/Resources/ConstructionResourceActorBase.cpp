@@ -1,6 +1,6 @@
-﻿#include "ConstructionResources/ConstructionResourceActorBase.h"
+﻿#include "Constructions/Resources/ConstructionResourceActorBase.h"
 
-#include "ConstructionResources/ConstructionResourcePieceActorBase.h"
+#include "Constructions/Resources/ConstructionResourcePieceActorBase.h"
 
 void AConstructionResourceActorBase::TakeAnyDamage(AActor* damagedActor, float damage,
                                                    const UDamageType* damageType, AController* instigatedBy, AActor* damageCauser)

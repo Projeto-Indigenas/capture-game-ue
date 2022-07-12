@@ -1,7 +1,6 @@
 ﻿#include "Player/PlayerCharacterBase.h"
 
 #include "Components/CapsuleComponent.h"
-#include "ConstructionResources/ConstructionResourcePieceActorBase.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Net/UnrealNetwork.h"
 
@@ -9,6 +8,7 @@
 #include "Player/Class/DefaultPlayerCharacterClass.h"
 #include "Player/Class/PlayerCharacterClassBase.h"
 #include "Weapons/WeaponActorBase.h"
+#include "Constructions/Resources/ConstructionResourcePieceActorBase.h"
 
 DEFINE_LOG_CATEGORY(PlayerCharacter);
 
@@ -78,6 +78,21 @@ void APlayerCharacterBase::ReplicateEvadeAttack_Server_Implementation()
 	}
 }
 
+void APlayerCharacterBase::ReplicatePickUpItem_Server_Implementation()
+{
+	PickDropItem();
+}
+
+void APlayerCharacterBase::ReplicateCarryItem_Clients_Implementation(AConstructionResourcePieceActorBase* piece)
+{
+	_playerCharacterClass->CarryItem(piece);
+}
+
+void APlayerCharacterBase::ReplicateDropItem_Clients_Implementation(AConstructionResourcePieceActorBase* piece)
+{
+	_playerCharacterClass->DropItem(piece);
+}
+
 void APlayerCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
@@ -112,7 +127,8 @@ void APlayerCharacterBase::Initialize(APlayerCharacterControllerBase* controller
 	classInfo.Character = this;
 	classInfo.Weapon = _weaponActor.Get();
 	classInfo.MovementSpeed = _movementSpeed;
-	classInfo.MovementSpeedDebuff = _movementSpeedDebuff;	
+	classInfo.MovementSpeedDebuff = _movementSpeedDebuff;
+	classInfo.ResourceItemSocketName = _resourceItemSocketName;
 	
 	characterClass->Initialize(classInfo);
 
@@ -121,12 +137,6 @@ void APlayerCharacterBase::Initialize(APlayerCharacterControllerBase* controller
 	_currentLifePoints = _initialLifePoints;
 
 	OnTakeAnyDamage.AddDynamic(this, &APlayerCharacterBase::TakeAnyDamage);
-
-	UCapsuleComponent* capsuleComponent = GetCapsuleComponent();
-	capsuleComponent->OnComponentBeginOverlap.AddDynamic(this,
-		&APlayerCharacterBase::BeginOverlap);
-	capsuleComponent->OnComponentEndOverlap.AddDynamic(this,
-		&APlayerCharacterBase::EndOverlap);
 }
 
 void APlayerCharacterBase::Tick(float deltaSeconds)
@@ -198,7 +208,7 @@ void APlayerCharacterBase::PickUpItem()
 {
 	if (HasAuthority())
 	{
-		TogglePickItem();
+		PickDropItem();
 
 		return;
 	}
@@ -206,8 +216,20 @@ void APlayerCharacterBase::PickUpItem()
 	ReplicatePickUpItem_Server();
 }
 
+void APlayerCharacterBase::PickDropItem()
+{
+	_playerCharacterClass->PickDropItem([this](AConstructionResourcePieceActorBase* pickedPiece)
+	{
+		ReplicateCarryItem_Clients(pickedPiece);
+	},
+	[this](AConstructionResourcePieceActorBase* droppedPiece)
+	{
+		ReplicateDropItem_Clients(droppedPiece);
+	});
+}
+
 void APlayerCharacterBase::TakeAnyDamage(AActor* damagedActor, float damage,
-                                         const UDamageType* damageType, AController* instigatedBy, AActor* damageCauser)
+	const UDamageType* damageType, AController* instigatedBy, AActor* damageCauser)
 {
 	LogOnScreen(FString::Printf(
 		TEXT("TakeDamage - taking %f points, current life %f, damage cause %s, damage receiver %s"),
@@ -229,76 +251,6 @@ void APlayerCharacterBase::TakeAnyDamage(AActor* damagedActor, float damage,
 	CharacterDied();
 }
 
-void APlayerCharacterBase::ReplicatePickUpItem_Server_Implementation()
-{
-	TogglePickItem();
-}
-
-void APlayerCharacterBase::ReplicateCarryItem_Clients_Implementation(AConstructionResourcePieceActorBase* piece)
-{
-	CarryItem(piece);
-}
-
-void APlayerCharacterBase::ReplicateDropItem_Clients_Implementation(AConstructionResourcePieceActorBase* piece)
-{
-	DropItem(piece);
-}
-
-void APlayerCharacterBase::TogglePickItem()
-{
-	if (_carryingPiece.IsValid())
-	{
-	    AConstructionResourcePieceActorBase* piece = _carryingPiece.Get();
-	    
-		DropItem(piece);
-		
-		ReplicateDropItem_Clients(piece);
-
-		return;
-	}
-	
-	if (!_resourcePieceAvailableToPick.IsValid()) return;
-	
-	AConstructionResourcePieceActorBase* piece = _resourcePieceAvailableToPick.Get();
-	
-	CarryItem(piece);
-	
-	ReplicateCarryItem_Clients(piece);
-}
-
-void APlayerCharacterBase::CarryItem(AConstructionResourcePieceActorBase* piece)
-{
-	piece->SetSimulatePhysics(false);
-	
-	const FAttachmentTransformRules rules = FAttachmentTransformRules(EAttachmentRule::KeepWorld, false);
-	piece->AttachToActor(this, rules, _resourceItemSocketName);
-
-	FVector socketLocation;
-	FRotator socketRotation;
-	GetMesh()->GetSocketWorldLocationAndRotation(
-		_resourceItemSocketName, socketLocation, socketRotation);
-	
-	piece->SetActorLocation(socketLocation);
-	piece->SetActorRotation(socketRotation + FRotator(0, 0, 90));
-
-	_playerCharacterClass->SetCarryingItem(true);
-
-	_carryingPiece = piece;
-	_resourcePieceAvailableToPick.Reset(); 
-}
-
-void APlayerCharacterBase::DropItem(AConstructionResourcePieceActorBase* piece)
-{
-	const FDetachmentTransformRules rules(EDetachmentRule::KeepWorld, false);
-	piece->DetachFromActor(rules);
-
-	_playerCharacterClass->SetCarryingItem(false);
-
-	piece->SetSimulatePhysics(true);
-
-	_carryingPiece.Reset();
-}
-
 void APlayerCharacterBase::CharacterDied() const
 {
 	LogOnScreen(TEXT("Setting character to ragdoll on death"));
@@ -309,25 +261,6 @@ void APlayerCharacterBase::CharacterDied() const
 	GetCapsuleComponent()->DestroyComponent();
 
 	OnCharacterDeath.ExecuteIfBound();
-}
-
-void APlayerCharacterBase::BeginOverlap(UPrimitiveComponent* overlappedComponent, AActor* otherActor,
-	UPrimitiveComponent* otherComp, int32 otherBodyIndex, bool bFromSweep, const FHitResult& sweepResult)
-{
-	if (!IsValid(otherActor) || otherActor == this) return;
-	
-	if (!otherActor->IsA<AConstructionResourcePieceActorBase>()) return;
-
-	_resourcePieceAvailableToPick = Cast<AConstructionResourcePieceActorBase>(otherActor);
-}
-
-void APlayerCharacterBase::EndOverlap(UPrimitiveComponent* overlappedComponent, AActor* otherActor,
-	UPrimitiveComponent* otherComp, int32 otherBodyIndex)
-{
-	if (_resourcePieceAvailableToPick == otherActor)
-	{
-		_resourcePieceAvailableToPick.Reset();
-	}
 }
 
 void APlayerCharacterBase::ReplicateTakeDamage_Clients_Implementation(float damage)

@@ -3,8 +3,10 @@
 #include "CoreMinimal.h"
 #include "PlayerCharacterClassBase.generated.h"
 
+class AConstructionResourcePieceActorBase;
 class APlayerCharacterControllerBase;
 class APlayerCharacterBase;
+class AConstructionBuildingBase;
 class UPlayerCharacterAnimInstanceBase;
 
 struct STACKOBOT_API FCharacterClassInitializationInfo
@@ -13,6 +15,7 @@ struct STACKOBOT_API FCharacterClassInitializationInfo
 	APlayerCharacterBase* Character = nullptr;
 	float MovementSpeed = 1.0f;
 	float MovementSpeedDebuff = 1.0f;
+	FName ResourceItemSocketName = NAME_None;
 };
 
 UCLASS()
@@ -23,11 +26,28 @@ class STACKOBOT_API UPlayerCharacterClassBase : public UObject
 	FVector2D _directionVector = FVector2D::ZeroVector;
 	float _movementSpeed = 0.0f;
 	float _movementSpeedDebuff = 1.0f;
+	FName _resourceItemSocketName = NAME_None;
+	
+	TWeakObjectPtr<AConstructionResourcePieceActorBase> _resourcePieceAvailableToPick;
+	TWeakObjectPtr<AConstructionResourcePieceActorBase> _carryingPiece;
+	TWeakObjectPtr<AConstructionBuildingBase> _constructionBuilding;
+
+	UFUNCTION()
+	virtual void BeginOverlap(UPrimitiveComponent* overlappedComponent, AActor* otherActor,
+		UPrimitiveComponent* otherComp, int32 otherBodyIndex,
+		bool bFromSweep, const FHitResult& sweepResult);
+
+	UFUNCTION()
+	virtual void EndOverlap(UPrimitiveComponent* overlappedComponent, AActor* otherActor,
+		UPrimitiveComponent* otherComp, int32 otherBodyIndex);
+
+	virtual void SetCarryingItem(const bool carrying);
 
 protected:
 	TWeakObjectPtr<APlayerCharacterControllerBase> _controller;
 	TWeakObjectPtr<APlayerCharacterBase> _character;
 	TWeakObjectPtr<UPlayerCharacterAnimInstanceBase> _animInstance;
+	TWeakObjectPtr<USkeletalMeshComponent> _skeletalMesh;
 	
 	bool _shouldDebuffMovement = false;
 	
@@ -46,5 +66,9 @@ public:
 	virtual bool EvadeAttack();
 	virtual bool TakeHit();
 
-	virtual void SetCarryingItem(const bool carrying);
+	void PickDropItem(
+		const TUniqueFunction<void(AConstructionResourcePieceActorBase*)>& itemPicked,
+		const TUniqueFunction<void(AConstructionResourcePieceActorBase*)>& itemDropped);
+	void CarryItem(AConstructionResourcePieceActorBase* piece);
+	void DropItem(AConstructionResourcePieceActorBase* piece);
 };

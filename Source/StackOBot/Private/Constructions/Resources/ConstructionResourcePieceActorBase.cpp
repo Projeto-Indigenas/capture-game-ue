@@ -1,4 +1,6 @@
-﻿#include "ConstructionResources/ConstructionResourcePieceActorBase.h"
+﻿#include "Constructions/Resources/ConstructionResourcePieceActorBase.h"
+
+#include "Player/PlayerCharacterBase.h"
 
 void AConstructionResourcePieceActorBase::BeginPlay()
 {
@@ -9,8 +11,7 @@ void AConstructionResourcePieceActorBase::BeginPlay()
 
 AConstructionResourcePieceActorBase::AConstructionResourcePieceActorBase()
 {
-	RootComponent = _staticMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(
-		TEXT("StaticMesh"));	
+	RootComponent = _staticMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StaticMesh"));	
 }
 
 void AConstructionResourcePieceActorBase::SetSimulatePhysics(const bool simulate) const
@@ -19,4 +20,9 @@ void AConstructionResourcePieceActorBase::SetSimulatePhysics(const bool simulate
 
 	const auto collision = simulate ? ECollisionEnabled::PhysicsOnly : ECollisionEnabled::NoCollision;
 	_staticMeshComponent->SetCollisionEnabled(collision);
+}
+
+EConstructionResourceType AConstructionResourcePieceActorBase::GetResourceType() const
+{
+	return _resourceType;
 }

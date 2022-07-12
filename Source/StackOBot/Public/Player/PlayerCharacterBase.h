@@ -7,6 +7,7 @@
 DECLARE_LOG_CATEGORY_EXTERN(PlayerCharacter, Log, All);
 
 class AConstructionResourcePieceActorBase;
+class AConstructionBuildingBase;
 class APlayerCharacterControllerBase;
 class APlayerCharacterRagdollBase;
 class AWeaponActorBase;
@@ -19,8 +20,6 @@ class STACKOBOT_API APlayerCharacterBase : public ACharacter
 	GENERATED_BODY()
 
 	TWeakObjectPtr<AWeaponActorBase> _weaponActor;
-	TWeakObjectPtr<AConstructionResourcePieceActorBase> _resourcePieceAvailableToPick;
-	TWeakObjectPtr<AConstructionResourcePieceActorBase> _carryingPiece;
 	
 	UPROPERTY()
 	UPlayerCharacterClassBase* _playerCharacterClass;
@@ -66,21 +65,9 @@ class STACKOBOT_API APlayerCharacterBase : public ACharacter
 
 	UFUNCTION(NetMulticast, Reliable)
 	void ReplicateDropItem_Clients(AConstructionResourcePieceActorBase* piece);
-
-	void TogglePickItem();
-	void CarryItem(AConstructionResourcePieceActorBase* piece);
-	void DropItem(AConstructionResourcePieceActorBase* piece);
-
+	
 	void CharacterDied() const;
-
-	UFUNCTION()
-	void BeginOverlap(UPrimitiveComponent* overlappedComponent, AActor* otherActor,
-		UPrimitiveComponent* otherComp, int32 otherBodyIndex,
-		bool bFromSweep, const FHitResult& sweepResult);
-
-	UFUNCTION()
-	void EndOverlap(UPrimitiveComponent* overlappedComponent, AActor* otherActor,
-		UPrimitiveComponent* otherComp, int32 otherBodyIndex);
+	void PickDropItem();
 
 protected:
 	UPROPERTY(EditDefaultsOnly)
