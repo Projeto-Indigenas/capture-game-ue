@@ -37,14 +37,21 @@ void APlayerCharacterControllerBase::MoveHorizontal(const float horizontal)
 	_directionVector.Y = horizontal;
 }
 
-void APlayerCharacterControllerBase::PrimaryAttack()
+void APlayerCharacterControllerBase::AimVertical(const float vertical)
 {
-	_playerCharacter->PrimaryAttack();
+	_aimDirectionVector.X += vertical;
+	_aimDirectionVector.Normalize();
 }
 
-void APlayerCharacterControllerBase::EvadeAttack()
+void APlayerCharacterControllerBase::AimHorizontal(const float horizontal)
 {
-	_playerCharacter->EvadeAttack();
+	_aimDirectionVector.Y += horizontal;
+	_aimDirectionVector.Normalize();
+}
+
+void APlayerCharacterControllerBase::PrimaryAttack(const bool pressed)
+{
+	_playerCharacter->PrimaryAttack(pressed);
 }
 
 void APlayerCharacterControllerBase::Jump()
@@ -72,12 +79,6 @@ void APlayerCharacterControllerBase::TryInitialize(APawn* newPawn)
 	
 	if (APlayerCharacterBase* character = Cast<APlayerCharacterBase>(newPawn))
 	{
-		_playerCharacter = character;
-		_playerCharacter->Initialize(this);
-
-		_playerCharacter->OnCharacterDeath.BindUObject(this,
-			&APlayerCharacterControllerBase::OnCharacterDeath);
-
 		if (IsLocalPlayerController())
 		{
 			if (!_playerCameraActor.IsValid())
@@ -90,6 +91,13 @@ void APlayerCharacterControllerBase::TryInitialize(APawn* newPawn)
 			
 			_playerCameraActor->SetTargetActor(character);
 		}
+
+		_playerCharacter = character;
+		// the camera actor must exist for this initialization to work properly
+		_playerCharacter->Initialize(this);
+
+		_playerCharacter->OnCharacterDeath.BindUObject(this,
+			&APlayerCharacterControllerBase::OnCharacterDeath);
 	}
 }
 
@@ -123,10 +131,14 @@ void APlayerCharacterControllerBase::SetupInputComponent()
 		&APlayerCharacterControllerBase::MoveVertical);
 	InputComponent->BindAxis(TEXT("CharacterMoveHorizontal"), this,
 		&APlayerCharacterControllerBase::MoveHorizontal);
-	InputComponent->BindAction(TEXT("CharacterPrimaryAttack"), IE_Pressed, this,
-		&APlayerCharacterControllerBase::PrimaryAttack);
-	InputComponent->BindAction(TEXT("CharacterEvadeAttack"), IE_Pressed, this,
-		&APlayerCharacterControllerBase::EvadeAttack);
+	InputComponent->BindAxis(TEXT("CharacterAimVertical"), this,
+		&APlayerCharacterControllerBase::AimVertical);
+	InputComponent->BindAxis(TEXT("CharacterAimHorizontal"), this,
+		&APlayerCharacterControllerBase::AimHorizontal);
+	InputComponent->BindAction<TDelegate<void(const bool)>>(TEXT("CharacterPrimaryAttack"), IE_Pressed, this,
+		&APlayerCharacterControllerBase::PrimaryAttack, true);
+	InputComponent->BindAction<TDelegate<void(const bool)>>(TEXT("CharacterPrimaryAttack"), IE_Released, this,
+		&APlayerCharacterControllerBase::PrimaryAttack, false);
 	InputComponent->BindAction(TEXT("CharacterJump"), IE_Pressed, this,
 		&APlayerCharacterControllerBase::Jump);
 	InputComponent->BindAction(TEXT("CharacterCollect"), IE_Pressed, this,
@@ -163,9 +175,15 @@ void APlayerCharacterControllerBase::Tick(float deltaSeconds)
 	if (!_playerCharacter.IsValid()) return;
 	
 	_playerCharacter->SetMovementDirection(_directionVector);
+	_playerCharacter->SetAimDirection(_aimDirectionVector);
 }
 
 APlayerCharacterBase* APlayerCharacterControllerBase::GetPlayerCharacter() const
 {
 	return _playerCharacter.Get();
+}
+
+APlayerCameraActor* APlayerCharacterControllerBase::GetCameraActor() const
+{
+	return _playerCameraActor.Get();
 }

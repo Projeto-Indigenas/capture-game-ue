@@ -4,11 +4,14 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Net/UnrealNetwork.h"
 
+#include "Player/Class/CharacterClassType.h"
 #include "Player/PlayerCharacterControllerBase.h"
 #include "Player/Class/DefaultPlayerCharacterClass.h"
 #include "Player/Class/PlayerCharacterClassBase.h"
-#include "Weapons/WeaponActorBase.h"
+#include "Player/Class/ArcherPlayerCharacterClass.h"
 #include "Constructions/Resources/ConstructionResourcePieceActorBase.h"
+#include "Weapons/DamageWeaponActorBase.h"
+#include "Weapons/Bow/BowActorBase.h"
 
 DEFINE_LOG_CATEGORY(PlayerCharacter);
 
@@ -27,6 +30,19 @@ void APlayerCharacterBase::LogOnScreen(const FString& message) const
 	}
 
 	UE_LOG(PlayerCharacter, Log, TEXT("%s"), *debugMessage)
+}
+
+void APlayerCharacterBase::ReplicateAimDirection_Server_Implementation(const FVector2D& directionVector)
+{
+	if (_playerCharacterClass->SetAimDirection(directionVector))
+	{
+		ReplicateAimDirection_Clients(directionVector);
+	}
+}
+
+void APlayerCharacterBase::ReplicateAimDirection_Clients_Implementation(const FVector2D& directionVector)
+{
+	_playerCharacterClass->SetAimDirection(directionVector);	
 }
 
 void APlayerCharacterBase::ReplicateMovementDirection_Server_Implementation(const FVector2D& directionVector)
@@ -57,25 +73,17 @@ void APlayerCharacterBase::ReplicateRequestJump_Clients_Implementation()
 	_playerCharacterClass->Jump();
 }
 
-void APlayerCharacterBase::ReplicatePrimaryAttack_Server_Implementation()
+void APlayerCharacterBase::ReplicatePrimaryAttack_Server_Implementation(const bool pressed)
 {
-	if (_playerCharacterClass->PrimaryAttack())
+	if (_playerCharacterClass->PrimaryAttack(pressed))
 	{
-		ReplicatePrimaryAttack_Client();
+		ReplicatePrimaryAttack_Clients(pressed);
 	}
 }
 
-void APlayerCharacterBase::ReplicatePrimaryAttack_Client_Implementation()
+void APlayerCharacterBase::ReplicatePrimaryAttack_Clients_Implementation(const bool pressed)
 {
-	_playerCharacterClass->PrimaryAttack();
-}
-
-void APlayerCharacterBase::ReplicateEvadeAttack_Server_Implementation()
-{
-	if (_playerCharacterClass->EvadeAttack())
-	{
-		// TODO(anderson): replicate evade attack on the simulated clients
-	}
+	_playerCharacterClass->PrimaryAttack(pressed);
 }
 
 void APlayerCharacterBase::ReplicatePickUpItem_Server_Implementation()
@@ -93,11 +101,22 @@ void APlayerCharacterBase::ReplicateDropItem_Clients_Implementation(AConstructio
 	_playerCharacterClass->DropItem(piece);
 }
 
+ADamageWeaponActorBase* APlayerCharacterBase::GetTheStick_Implementation()
+{
+	return nullptr;
+}
+
+ABowActorBase* APlayerCharacterBase::GetTheBow_Implementation()
+{
+	return nullptr;
+}
+
 void APlayerCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 
-	Initialize(Cast<APlayerCharacterControllerBase>(GetController()));
+	_playerController = Cast<APlayerCharacterControllerBase>(GetController());
+	Initialize(_playerController.Get());
 }
 
 void APlayerCharacterBase::Initialize(APlayerCharacterControllerBase* controller)
@@ -108,33 +127,13 @@ void APlayerCharacterBase::Initialize(APlayerCharacterControllerBase* controller
 		TEXT("Initialize - initial life points %f"),
 		_initialLifePoints));
 
-	TArray<AActor*> childActors;
-	GetAllChildActors(childActors);
-	AActor** weaponActorPtr = childActors.FindByPredicate([](const AActor* each)
-	{
-		return IsValid(each) && each->IsA<AWeaponActorBase>();
-	});
-
-	if (weaponActorPtr != nullptr)
-	{
-		_weaponActor = Cast<AWeaponActorBase>(*weaponActorPtr);
-	}
-	
-	UDefaultPlayerCharacterClass* characterClass = NewObject<UDefaultPlayerCharacterClass>(this);
-	
-	FDefaultCharacterClassInitializationInfo classInfo;
-	classInfo.Controller = controller;
-	classInfo.Character = this;
-	classInfo.Weapon = _weaponActor.Get();
-	classInfo.MovementSpeed = _movementSpeed;
-	classInfo.MovementSpeedDebuff = _movementSpeedDebuff;
-	classInfo.ResourceItemSocketName = _resourceItemSocketName;
-	
-	characterClass->Initialize(classInfo);
-
-	_playerCharacterClass = characterClass;
-	
 	_currentLifePoints = _initialLifePoints;
+
+	_playerController = controller;
+	_theStickWeapon = GetTheStick();
+	_theBowWeapon = GetTheBow();
+	
+	CreateOrUpdateCharacterClass();
 
 	OnTakeAnyDamage.AddDynamic(this, &APlayerCharacterBase::TakeAnyDamage);
 }
@@ -143,6 +142,8 @@ void APlayerCharacterBase::Tick(float deltaSeconds)
 {
 	Super::Tick(deltaSeconds);
 
+	CreateOrUpdateCharacterClass();
+	
 	if (!IsValid(_playerCharacterClass)) return;
 	
 	_playerCharacterClass->Tick(deltaSeconds);
@@ -178,21 +179,21 @@ void APlayerCharacterBase::SetMovementDirection(const FVector2D& directionVector
 	}
 }
 
-void APlayerCharacterBase::PrimaryAttack()
+void APlayerCharacterBase::SetAimDirection(const FVector2D& directionVector)
 {
-	if (!IsValid(_playerCharacterClass)) return;
-	
-	if (_playerCharacterClass->PrimaryAttack())
+	if (_playerCharacterClass->SetAimDirection(directionVector))
 	{
-		ReplicatePrimaryAttack_Server();
+		ReplicateAimDirection_Server(directionVector);
 	}
 }
 
-void APlayerCharacterBase::EvadeAttack()
+void APlayerCharacterBase::PrimaryAttack(const bool pressed)
 {
-	if (_playerCharacterClass->EvadeAttack())
+	if (!IsValid(_playerCharacterClass)) return;
+	
+	if (_playerCharacterClass->PrimaryAttack(pressed))
 	{
-		ReplicateEvadeAttack_Server();
+		ReplicatePrimaryAttack_Server(pressed);
 	}
 }
 
@@ -228,8 +229,65 @@ void APlayerCharacterBase::PickDropItem()
 	});
 }
 
-void APlayerCharacterBase::TakeAnyDamage(AActor* damagedActor, float damage,
-	const UDamageType* damageType, AController* instigatedBy, AActor* damageCauser)
+void APlayerCharacterBase::CreateOrUpdateCharacterClass()
+{
+	if (IsValid(_playerCharacterClass) && _playerCharacterClass->GetClassType() == _classType) return;
+
+	// meaning that it is not nullptr and the class has changed
+	if (IsValid(_playerCharacterClass))
+	{
+		_playerCharacterClass->DeInitialize();
+	}
+	
+	switch (_classType)
+	{
+	case ECharacterClassType::Default:
+		{
+			UDefaultPlayerCharacterClass* characterClass = NewObject<UDefaultPlayerCharacterClass>(this);
+	
+			const FDefaultCharacterClassInitializationInfo classInfo(
+				_playerController, this, _movementSpeed,
+				_movementSpeedDebuff,
+				_lookToDirectionAcceleration,
+				_resourceItemSocketName,
+				_theStickWeapon);
+	
+			characterClass->Initialize(classInfo);
+
+			_playerCharacterClass = characterClass;
+		}
+		break;
+		
+	case ECharacterClassType::Archer:
+		{
+			UArcherPlayerCharacterClass* characterClass = NewObject<UArcherPlayerCharacterClass>(this);
+
+			const FArcherCharacterClassInitializationInfo classInfo(
+				_playerController, this,
+				_movementSpeed,
+				_movementSpeedDebuff,
+				_lookToDirectionAcceleration,
+				_resourceItemSocketName,
+				_theBowWeapon);
+
+			characterClass->Initialize(classInfo);
+
+			_playerCharacterClass = characterClass;
+		}
+		break;
+		
+	default:
+		{
+			UE_LOG(PlayerCharacter, Error,
+				TEXT("%s not implemented yet"),
+				*UEnum::GetDisplayValueAsText(_classType).ToString())
+		}
+		break;
+	}
+}
+
+void APlayerCharacterBase::TakeAnyDamage(AActor* damagedActor, float damage, const UDamageType* damageType,
+	AController* instigatedBy, AActor* damageCauser)
 {
 	LogOnScreen(FString::Printf(
 		TEXT("TakeDamage - taking %f points, current life %f, damage cause %s, damage receiver %s"),
@@ -255,7 +313,8 @@ void APlayerCharacterBase::CharacterDied() const
 {
 	LogOnScreen(TEXT("Setting character to ragdoll on death"));
 
-	_weaponActor->SetGenerateOverlapEvents(false);
+	// TODO(anderson): this should cease to exist when moving the collision box to the character
+	_theStickWeapon->SetGenerateOverlapEvents(false);
 	
 	GetMesh()->SetSimulatePhysics(true);
 	GetCapsuleComponent()->DestroyComponent();

@@ -4,11 +4,20 @@
 #include "PlayerCharacterClassBase.h"
 #include "DefaultPlayerCharacterClass.generated.h"
 
-class AWeaponActorBase;
+class ADamageWeaponActorBase;
 
 struct STACKOBOT_API FDefaultCharacterClassInitializationInfo : FCharacterClassInitializationInfo
 {
-	AWeaponActorBase* Weapon;
+	const TWeakObjectPtr<ADamageWeaponActorBase>& Weapon = nullptr;
+
+	FDefaultCharacterClassInitializationInfo(
+		const TWeakObjectPtr<APlayerCharacterControllerBase>& controller,
+		const TWeakObjectPtr<APlayerCharacterBase>& character,
+		const float movementSpeed,
+		const float movementSpeedDebuff,
+		const float lookToDirectionAcceleration,
+		const FName& resourceItemSocketName,
+		const TWeakObjectPtr<ADamageWeaponActorBase>& weapon);
 };
 
 UCLASS()
@@ -16,7 +25,7 @@ class STACKOBOT_API UDefaultPlayerCharacterClass : public UPlayerCharacterClassB
 {
 	GENERATED_BODY()
 
-	TWeakObjectPtr<AWeaponActorBase> _weapon;
+	TWeakObjectPtr<ADamageWeaponActorBase> _theStickWeapon;
 
 	void ChangeWeaponHitEnabled(bool hitEnabled) const;
 
@@ -25,7 +34,8 @@ class STACKOBOT_API UDefaultPlayerCharacterClass : public UPlayerCharacterClassB
 	
 public:
 	virtual void Initialize(const FDefaultCharacterClassInitializationInfo& info);
+	virtual void DeInitialize() override;
 
-	virtual bool PrimaryAttack() override;
+	virtual bool PrimaryAttack(const bool pressed) override;
 	virtual bool TakeHit() override;
 };

@@ -9,15 +9,6 @@ void UPlayerCharacterAnimInstanceBase::NotifyPrimaryAttackFinished()
 	PrimaryAttackFinished();
 }
 
-void UPlayerCharacterAnimInstanceBase::NotifyEvadeAttackFinished()
-{
-	_evadeAttack = false;
-	
-	if (!EvadeAttackFinished) return;
-
-	EvadeAttackFinished();
-}
-
 void UPlayerCharacterAnimInstanceBase::NotifyTakeHitFinished()
 {
 	_takeHit = false;
@@ -34,13 +25,32 @@ void UPlayerCharacterAnimInstanceBase::NotifyPrimaryAttackHitEnabled(const bool 
 	PrimaryAttackHitEnabled(enabled);
 }
 
-bool UPlayerCharacterAnimInstanceBase::SetMovementSpeed(float speed)
+void UPlayerCharacterAnimInstanceBase::NotifyReleaseArrow()
 {
-	const float newSpeed = speed * _movementSpeedScale;
+	if (!ReleaseArrow) return;
 
-	if (newSpeed != _movementSpeed)
+	ReleaseArrow();
+}
+
+void UPlayerCharacterAnimInstanceBase::NotifyReleaseArrowFinished()
+{
+	if (!ReleaseArrowFinished) return;
+
+	ReleaseArrowFinished();
+}
+
+void UPlayerCharacterAnimInstanceBase::SetCharacterClass(const ECharacterClassType classType)
+{
+	_classType = classType;
+}
+
+bool UPlayerCharacterAnimInstanceBase::SetMovementDirection(const FVector2D& direction)
+{
+	const FVector2D newSpeed = direction * _movementSpeedScale;
+
+	if (newSpeed != _movementDirection)
 	{
-		_movementSpeed = newSpeed;
+		_movementDirection = newSpeed;
 
 		return true;
 	}
@@ -48,19 +58,16 @@ bool UPlayerCharacterAnimInstanceBase::SetMovementSpeed(float speed)
 	return false;
 }
 
-bool UPlayerCharacterAnimInstanceBase::PrimaryAttack()
+bool UPlayerCharacterAnimInstanceBase::SetPrimaryAttack(const bool attack)
 {
-	if (_primaryAttack) return false;
-	
-	return _primaryAttack = true;
-}
+	if (_primaryAttack != attack)
+	{
+		_primaryAttack = attack;
+		
+		return true;
+	}
 
-bool UPlayerCharacterAnimInstanceBase::EvadeAttack()
-{
-	if (_evadeAttack) return false;
-	
-	_primaryAttack = false;
-	return _evadeAttack = true;
+	return false;
 }
 
 bool UPlayerCharacterAnimInstanceBase::TakeHit()
@@ -68,7 +75,6 @@ bool UPlayerCharacterAnimInstanceBase::TakeHit()
 	if (_takeHit) return false;
 
 	_primaryAttack = false;
-	_evadeAttack = false;
 	return _takeHit = true;
 }
 
@@ -89,17 +95,12 @@ void UPlayerCharacterAnimInstanceBase::SetCarryingItem(const bool carrying)
 
 float UPlayerCharacterAnimInstanceBase::GetMovementSpeed() const
 {
-	return _movementSpeed;
+	return _movementDirection.Y;
 }
 
 bool UPlayerCharacterAnimInstanceBase::IsAttacking() const
 {
 	return _primaryAttack;
-}
-
-bool UPlayerCharacterAnimInstanceBase::IsEvading() const
-{
-	return _evadeAttack;
 }
 
 bool UPlayerCharacterAnimInstanceBase::IsTakingHit() const

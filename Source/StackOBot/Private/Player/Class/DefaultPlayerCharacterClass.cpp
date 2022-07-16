@@ -2,13 +2,29 @@
 
 #include "Player/PlayerCharacterAnimInstanceBase.h"
 #include "Player/PlayerCharacterBase.h"
+#include "Weapons/DamageWeaponActorBase.h"
 #include "Weapons/WeaponActorBase.h"
+
+FDefaultCharacterClassInitializationInfo::FDefaultCharacterClassInitializationInfo(
+const TWeakObjectPtr<APlayerCharacterControllerBase>& controller,
+	const TWeakObjectPtr<APlayerCharacterBase>& character,
+	const float movementSpeed,
+	const float movementSpeedDebuff,
+	const float lookToDirectionAcceleration,
+	const FName& resourceItemSocketName,
+	const TWeakObjectPtr<ADamageWeaponActorBase>& weapon) : FCharacterClassInitializationInfo(
+		controller, character, movementSpeed, movementSpeedDebuff,
+		lookToDirectionAcceleration, resourceItemSocketName),
+	Weapon(weapon)
+{
+	//
+}
 
 void UDefaultPlayerCharacterClass::ChangeWeaponHitEnabled(bool hitEnabled) const
 {
-	if (!_weapon.IsValid()) return;
+	if (!_theStickWeapon.IsValid()) return;
 
-	_weapon->SetGenerateOverlapEvents(hitEnabled);
+	_theStickWeapon->SetGenerateOverlapEvents(hitEnabled);
 }
 
 void UDefaultPlayerCharacterClass::Initialize(const FCharacterClassInitializationInfo& info)
@@ -20,7 +36,7 @@ void UDefaultPlayerCharacterClass::Initialize(const FDefaultCharacterClassInitia
 {
 	Super::Initialize(info);
 
-	_weapon = info.Weapon;
+	_theStickWeapon = info.Weapon;
 	
 	if (_character->HasAuthority())
 	{
@@ -33,25 +49,29 @@ void UDefaultPlayerCharacterClass::Initialize(const FDefaultCharacterClassInitia
 	_animInstance->PrimaryAttackFinished = [this]
 	{
 		_shouldDebuffMovement = false;
-		_weapon->SetGenerateOverlapEvents(false);
+		_theStickWeapon->SetGenerateOverlapEvents(false);
 	};
 
-	_animInstance->TakeHitFinished = [this]
-	{
-		_shouldDebuffMovement = false;	
-	};
+	_theStickWeapon->SetActorHiddenInGame(false);
 }
 
-bool UDefaultPlayerCharacterClass::PrimaryAttack()
+void UDefaultPlayerCharacterClass::DeInitialize()
 {
-	if (Super::PrimaryAttack())
-	{
-		_shouldDebuffMovement = true;
-		
-		return true;
-	}
-	
-	return false;
+	Super::DeInitialize();
+
+	_theStickWeapon->SetActorHiddenInGame(true);
+}
+
+bool UDefaultPlayerCharacterClass::PrimaryAttack(const bool pressed)
+{
+	if (!pressed) return false;
+	if (_animInstance->IsCarryingItem()) return false;
+	if (_animInstance->IsAttacking()) return false;
+
+	_animInstance->SetPrimaryAttack(true);
+	_shouldDebuffMovement = true;
+
+	return true;
 }
 
 bool UDefaultPlayerCharacterClass::TakeHit()
@@ -59,7 +79,7 @@ bool UDefaultPlayerCharacterClass::TakeHit()
 	if (Super::TakeHit())
 	{
 		_shouldDebuffMovement = true;
-		_weapon->SetGenerateOverlapEvents(false);
+		_theStickWeapon->SetGenerateOverlapEvents(false);
 
 		return true;
 	}

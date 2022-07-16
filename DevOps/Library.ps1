@@ -25,7 +25,7 @@ function RunInstance([String] $mapName, [Boolean] $isServer)
     if ($IsWindows) {
         $unrealEditorPath = [Path]::Combine($env:UE_ENGINE_ROOT, "Engine", "Binaries", "Win64", "UnrealEditor.exe")
     } else {
-        $unrealEditorPath = [Path]::Combine($env:UE_ENGINE_ROOT, "Engine", "Binaries", "Mac", "UnrealEditor.app", "Contents", "UnrealEditor")
+        $unrealEditorPath = [Path]::Combine($env:UE_ENGINE_ROOT, "Engine", "Binaries", "Mac", "UnrealEditor.app", "Contents", "MacOS", "UnrealEditor")
     }
     
     if ($isServer)

@@ -16,6 +16,7 @@ class STACKOBOT_API APlayerCharacterControllerBase : public APlayerController
 	GENERATED_BODY()
 
 	FVector2D _directionVector;
+	FVector2D _aimDirectionVector;
 	
 	TWeakObjectPtr<APlayerCharacterBase> _playerCharacter;
 	TWeakObjectPtr<APlayerCameraActor> _playerCameraActor;
@@ -24,8 +25,9 @@ class STACKOBOT_API APlayerCharacterControllerBase : public APlayerController
 	
 	void MoveVertical(const float vertical);
 	void MoveHorizontal(const float horizontal);
-	void PrimaryAttack();
-	void EvadeAttack();
+	void AimVertical(const float vertical);
+	void AimHorizontal(const float horizontal);
+	void PrimaryAttack(const bool pressed);
 	void Jump();
 
 	void PickUpItem();
@@ -50,5 +52,6 @@ public:
 	virtual void Tick(float deltaSeconds) override;
 	
 	APlayerCharacterBase* GetPlayerCharacter() const;
+	APlayerCameraActor* GetCameraActor() const;
 };
 

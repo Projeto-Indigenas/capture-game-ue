@@ -7,9 +7,27 @@
 #include "Player/PlayerCharacterControllerBase.h"
 #include "Constructions/Building/ConstructionBuildingBase.h"
 #include "Constructions/Resources/ConstructionResourcePieceActorBase.h"
+#include "Player/Class/CharacterClassType.h"
+
+FCharacterClassInitializationInfo::FCharacterClassInitializationInfo(
+	const TWeakObjectPtr<APlayerCharacterControllerBase>& controller,
+	const TWeakObjectPtr<APlayerCharacterBase>& character,
+	const float movementSpeed,
+	const float movementSpeedDebuff,
+	const float lookToDirectionAcceleration,
+	const FName& resourceItemSocketName) :
+	Controller(controller),
+	Character(character),
+	MovementSpeed(movementSpeed),
+	MovementSpeedDebuff(movementSpeedDebuff),
+	LookToDirectionAcceleration(lookToDirectionAcceleration),
+	ResourceItemSocketName(resourceItemSocketName)
+{
+	//
+}
 
 void UPlayerCharacterClassBase::BeginOverlap(UPrimitiveComponent* overlappedComponent, AActor* otherActor,
-	UPrimitiveComponent* otherComp, int32 otherBodyIndex, bool bFromSweep, const FHitResult& sweepResult)
+                                             UPrimitiveComponent* otherComp, int32 otherBodyIndex, bool bFromSweep, const FHitResult& sweepResult)
 {
 	if (!IsValid(otherActor) || otherActor == _character) return;
 	
@@ -52,6 +70,19 @@ void UPlayerCharacterClassBase::SetCarryingItem(const bool carrying)
 	_animInstance->SetCarryingItem(carrying);
 }
 
+FVector2D UPlayerCharacterClassBase::GetMovementDirection(const FVector2D& direction)
+{
+	return direction;
+}
+
+void UPlayerCharacterClassBase::UpdateCharacterRotation(const FVector& direction)
+{
+	if (_controller.IsValid() && direction != FVector::ZeroVector)
+	{
+		_controller->SetControlRotation(direction.Rotation());
+	}
+}
+
 void UPlayerCharacterClassBase::Initialize(const FCharacterClassInitializationInfo& info)
 {
 	_controller = info.Controller;
@@ -59,6 +90,8 @@ void UPlayerCharacterClassBase::Initialize(const FCharacterClassInitializationIn
 	_movementSpeed = info.MovementSpeed;
 	_movementSpeedDebuff = info.MovementSpeedDebuff;
 	_resourceItemSocketName = info.ResourceItemSocketName;
+
+	_directionVector.SetAcceleration(info.LookToDirectionAcceleration);
 
 	_skeletalMesh = _character->GetMesh();
 	UAnimInstance* animInstance = _skeletalMesh->GetAnimInstance();
@@ -71,22 +104,38 @@ void UPlayerCharacterClassBase::Initialize(const FCharacterClassInitializationIn
 		&UPlayerCharacterClassBase::BeginOverlap);
 	capsuleComponent->OnComponentEndOverlap.AddDynamic(this,
 		&UPlayerCharacterClassBase::EndOverlap);
+
+	_animInstance->TakeHitFinished = [this]
+	{
+		_shouldDebuffMovement = false;	
+	};
+
+	_animInstance->SetCharacterClass(GetClassType());
+}
+
+void UPlayerCharacterClassBase::DeInitialize()
+{
+	// to be overriden
 }
 
 void UPlayerCharacterClassBase::Tick(float deltaSeconds)
 {
+	_directionVector.Tick(deltaSeconds);
+	
 	const float movementSpeedDebuff = _shouldDebuffMovement ? _movementSpeedDebuff : 1.0f;
 	
 	const FVector directionVector = FVector(_directionVector, 0.0f).GetClampedToMaxSize(1);
 
-	if (_controller.IsValid() && _directionVector != FVector2D::ZeroVector)
-	{
-		_controller->SetControlRotation(directionVector.Rotation());
-	}
+	UpdateCharacterRotation(directionVector);
 	
 	_character->AddMovementInput(directionVector, _movementSpeed * movementSpeedDebuff);
 
-	_animInstance->SetMovementSpeed(directionVector.Length());
+	_animInstance->SetMovementDirection(GetMovementDirection(_directionVector));
+}
+
+ECharacterClassType UPlayerCharacterClassBase::GetClassType() const
+{
+	return ECharacterClassType::Default;
 }
 
 void UPlayerCharacterClassBase::OnFalling()
@@ -102,7 +151,7 @@ void UPlayerCharacterClassBase::OnLanded()
 
 bool UPlayerCharacterClassBase::SetMovementDirection(const FVector2D& directionVector)
 {
-	if (_directionVector == directionVector) return false;
+	if (_directionVector.GetTarget2D() == directionVector) return false;
 	
 	_directionVector = directionVector;
 
@@ -112,6 +161,16 @@ bool UPlayerCharacterClassBase::SetMovementDirection(const FVector2D& directionV
 FVector2D UPlayerCharacterClassBase::GetMovementDirection() const
 {
 	return _directionVector;
+}
+
+bool UPlayerCharacterClassBase::SetAimDirection(const FVector2D& directionVector)
+{
+	return false;
+}
+
+FVector2D UPlayerCharacterClassBase::GetAimDirection() const
+{
+	return FVector2D::ZeroVector;
 }
 
 bool UPlayerCharacterClassBase::Jump()
@@ -128,16 +187,10 @@ bool UPlayerCharacterClassBase::Jump()
 	return false;
 }
 
-bool UPlayerCharacterClassBase::PrimaryAttack()
+bool UPlayerCharacterClassBase::PrimaryAttack(const bool pressed)
 {
 	if (_animInstance->IsCarryingItem()) return false;
-	return _animInstance->PrimaryAttack();
-}
-
-bool UPlayerCharacterClassBase::EvadeAttack()
-{
-	if (_animInstance->IsCarryingItem()) return false;
-	return _animInstance->EvadeAttack();
+	return _animInstance->SetPrimaryAttack(pressed);
 }
 
 bool UPlayerCharacterClassBase::TakeHit()
