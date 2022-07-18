@@ -12,13 +12,21 @@ class STACKOBOT_API AArrowActorBase : public ADamageWeaponActorBase
 {
 	GENERATED_BODY()
 
+	FTimerHandle _destroyTimerHandle;
+	
+	UPROPERTY(Replicated)
 	FVector _velocity = FVector::ZeroVector;
+	
+	UPROPERTY(Replicated)
 	bool _isFlying = false;
 
 	UPROPERTY()
 	const UPhysicsSettings* _physicsSettings;
 
 	void DisableAndScheduleDestroy();
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void ReplicateDisable_Clients(UPrimitiveComponent* otherComponent);
 	
 protected:
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly)
@@ -30,6 +38,8 @@ protected:
 	virtual void OnOverlapAnything(AActor* otherActor, UPrimitiveComponent* otherComponent) override;
 	
 	virtual void BeginPlay() override;
+
+	virtual void BeginDestroy() override;
 
 public:
 	AArrowActorBase();

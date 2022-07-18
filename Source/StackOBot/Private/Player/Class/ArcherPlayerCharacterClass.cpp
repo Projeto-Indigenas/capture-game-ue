@@ -31,6 +31,8 @@ void UArcherPlayerCharacterClass::Initialize(const FCharacterClassInitialization
 
 void UArcherPlayerCharacterClass::LetTheArrowFly()
 {
+	if (!_character->HasAuthority()) return;
+	
 	// TODO(anderson): the intensity should be passed instead of the 1.0f
 	_bowWeapon->FlyArrowFly(_lastKnownDirection.GetTarget(), 1.0f);
 	
@@ -40,6 +42,12 @@ void UArcherPlayerCharacterClass::LetTheArrowFly()
 void UArcherPlayerCharacterClass::ReleaseArrowFinished()
 {
 	_finishedReleasingArrow = true;
+}
+
+void UArcherPlayerCharacterClass::ReplicateLetTheArrowFly_Server_Implementation(
+)
+{
+	LetTheArrowFly();
 }
 
 FVector2D UArcherPlayerCharacterClass::GetMovementDirection(const FVector2D& direction)
@@ -85,6 +93,7 @@ void UArcherPlayerCharacterClass::Initialize(const FArcherCharacterClassInitiali
 	_bowWeapon->SetActorHiddenInGame(false);
 
 	_animInstance->ReleaseArrow = [this] { LetTheArrowFly(); };
+	
 	_animInstance->ReleaseArrowFinished = [this] { ReleaseArrowFinished(); };
 }
 

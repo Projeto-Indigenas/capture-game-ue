@@ -11,6 +11,7 @@
 #include "Player/Class/ArcherPlayerCharacterClass.h"
 #include "Constructions/Resources/ConstructionResourcePieceActorBase.h"
 #include "Weapons/Bow/BowActorBase.h"
+#include "Weapons/Bow/ArrowActorBase.h"
 
 DEFINE_LOG_CATEGORY(PlayerCharacter);
 
@@ -121,6 +122,26 @@ void APlayerCharacterBase::BeginPlay()
 
 	_playerController = Cast<APlayerCharacterControllerBase>(GetController());
 	Initialize(_playerController.Get());
+}
+
+void APlayerCharacterBase::BeginDestroy()
+{
+	Super::BeginDestroy();
+
+	if (!HasAuthority()) return;
+	
+	TArray<AActor*> actors;
+	GetAttachedActors(actors, true, true);
+
+	actors = actors.FilterByPredicate([](const AActor* actor)
+	{
+		return actor->IsA<AArrowActorBase>();
+	});
+
+	for (AActor* actor : actors)
+	{
+		actor->Destroy();
+	}
 }
 
 void APlayerCharacterBase::Initialize(APlayerCharacterControllerBase* controller)
