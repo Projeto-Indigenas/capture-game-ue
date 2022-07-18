@@ -1,14 +1,17 @@
 ﻿#include "Weapons/Bow/ArrowActorBase.h"
 
 #include "Components/BoxComponent.h"
+#include "Kismet/GameplayStatics.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 
 void AArrowActorBase::DisableAndScheduleDestroy()
 {
 	_isFlying = false;
 
-	_boxComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-
+	_boxComponent->SetComponentTickEnabled(false);
+	_boxComponent->SetGenerateOverlapEvents(false);
+	_boxComponent->DestroyComponent();
+	
 	FTimerHandle handle;
 	GetWorldTimerManager().SetTimer(handle, FTimerDelegate::CreateLambda([this]
 	{
@@ -18,10 +21,10 @@ void AArrowActorBase::DisableAndScheduleDestroy()
 
 void AArrowActorBase::OnOverlapAnything(AActor* otherActor, UPrimitiveComponent* otherComponent)
 {
+	DisableAndScheduleDestroy();
+	
 	const FAttachmentTransformRules rules = FAttachmentTransformRules(EAttachmentRule::KeepWorld, false);
 	AttachToComponent(otherComponent, rules);
-
-	DisableAndScheduleDestroy();
 }
 
 void AArrowActorBase::BeginPlay()
@@ -34,9 +37,13 @@ void AArrowActorBase::BeginPlay()
 AArrowActorBase::AArrowActorBase() : ADamageWeaponActorBase()
 {
 	PrimaryActorTick.bCanEverTick = true;
-	
-	_boxComponent->DetachFromComponent(FDetachmentTransformRules(EDetachmentRule::KeepWorld, false));
+
+	_boxComponent = CreateDefaultSubobject<UBoxComponent>(TEXT("Box"));
 	_boxComponent->SetupAttachment(_staticMeshComponent);
+	_boxComponent->SetGenerateOverlapEvents(false);
+
+	_boxComponent->OnComponentBeginOverlap.AddDynamic(this,
+		&AArrowActorBase::OnBeginOverlap);
 }
 
 void AArrowActorBase::Tick(float deltaSeconds)
@@ -45,24 +52,10 @@ void AArrowActorBase::Tick(float deltaSeconds)
 
 	if (!_isFlying) return;
 
-	// get the substep value for 5 iterations
-	const float substep = deltaSeconds / 5.0f;
-
 	const FVector initialLocation = GetActorLocation();
-	// iterate until the forth step
-	for (int step = 1; step <= 4; ++step)
-	{
-		FVector location = initialLocation + _velocity * step * substep;
-		SetActorLocation(location);
-
-		// the actor may have hit something in the step
-		if (!_isFlying) return;
-	}
-
-	// set the last step to the initially expected location 
 	const FVector finalLocation = initialLocation + _velocity * deltaSeconds;
-	SetActorLocation(finalLocation);
-
+	SetActorLocation(finalLocation); 
+	
 	if (!_velocity.IsNearlyZero())
 	{
 		SetActorRotation(_velocity.Rotation());

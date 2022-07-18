@@ -5,14 +5,15 @@
 #include "ArrowActorBase.generated.h"
 
 class UPhysicsSettings;
+class UBoxComponent;
 
 UCLASS(Abstract, Blueprintable)
 class STACKOBOT_API AArrowActorBase : public ADamageWeaponActorBase
 {
 	GENERATED_BODY()
 
-	bool _isFlying = false;
 	FVector _velocity = FVector::ZeroVector;
+	bool _isFlying = false;
 
 	UPROPERTY()
 	const UPhysicsSettings* _physicsSettings;
@@ -20,6 +21,9 @@ class STACKOBOT_API AArrowActorBase : public ADamageWeaponActorBase
 	void DisableAndScheduleDestroy();
 	
 protected:
+	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly)
+	UBoxComponent* _boxComponent;
+	
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly)
 	float _delayToDestroy = 5.0f;
 

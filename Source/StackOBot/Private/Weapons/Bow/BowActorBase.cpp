@@ -1,9 +1,26 @@
 ﻿#include "Weapons/Bow/BowActorBase.h"
 
+#include <Kismet/GameplayStatics.h>
+
 #include "Weapons/Bow/ArrowActorBase.h"
 
-void ABowActorBase::FlyArrowFly(const FVector& direction, const float impulseMultiplier) const
+bool ABowActorBase::CanFlyArrow(const float now) const
 {
+	if (now - _lastArrowFlyTime < _arrowReleaseRateInSeconds) return false;
+	return true;
+}
+
+bool ABowActorBase::CanFlyArrow() const
+{
+	return CanFlyArrow(UGameplayStatics::GetTimeSeconds(this));
+}
+
+void ABowActorBase::FlyArrowFly(const FVector& direction, const float impulseMultiplier)
+{
+	const float now = UGameplayStatics::GetTimeSeconds(this);
+	if (!CanFlyArrow(now)) return;
+	_lastArrowFlyTime = now;
+	
 	const FVector actorLocation = GetActorLocation();
 	const FRotator actorRotation = GetActorRotation();
 	AActor* spawnedActor = GetWorld()->SpawnActor(_arrowClass, &actorLocation, &actorRotation);

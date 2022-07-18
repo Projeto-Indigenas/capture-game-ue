@@ -23,27 +23,17 @@ void ADamageWeaponActorBase::LogOnScreen(const FString& message) const
 	UE_LOG(DamageWeaponActorBase, Log, TEXT("%s"), *debugMessage)
 }
 
-void ADamageWeaponActorBase::BeginOverlap(UPrimitiveComponent* overlappedComponent, AActor* otherActor,
-	UPrimitiveComponent* otherComp, int32 otherBodyIndex,
-	bool bFromSweep, const FHitResult& sweepResult)
-{
-	if (!IsValid(otherActor) || !_ownerActor.IsValid()) return;
-	if (otherActor == _ownerActor || otherActor->GetParentActor() == _ownerActor) return;
-
-	OnOverlapAnything(otherActor, otherComp);
-	
-	if (!otherActor->IsA<APlayerCharacterBase>()) return;
-	
-	OnDamageOtherActor(otherActor, otherComp);
-}
-
 void ADamageWeaponActorBase::OnDamageOtherActor(AActor* damagedActor, UPrimitiveComponent* otherComponent)
 {
+	IHittable* hittable = Cast<IHittable>(damagedActor);
+
+	if (hittable == nullptr || !hittable->IsHittableByActor(this)) return;
+	
 	LogOnScreen(FString::Printf(
 				TEXT("OnBeginOverlap - applying damage %f, actor being hit %s, actor hitting %s"),
 				_damage, *damagedActor->GetName(), *_ownerActor->GetName()));
 	
-	UGameplayStatics::ApplyDamage(damagedActor, _damage, nullptr, _ownerActor.Get(), nullptr);
+	hittable->TakeHit(_ownerActor.Get(), _damage);
 }
 
 void ADamageWeaponActorBase::OnOverlapAnything(AActor* otherActor, UPrimitiveComponent* otherComponent)
@@ -51,17 +41,14 @@ void ADamageWeaponActorBase::OnOverlapAnything(AActor* otherActor, UPrimitiveCom
 	//
 }
 
-ADamageWeaponActorBase::ADamageWeaponActorBase() : AWeaponActorBase()
+void ADamageWeaponActorBase::OnBeginOverlap(UPrimitiveComponent* overlappedComponent, AActor* otherActor,
+	UPrimitiveComponent* otherComp, int32 otherBodyIndex,
+	bool bFromSweep, const FHitResult& sweepResult)
 {
-	_boxComponent = CreateDefaultSubobject<UBoxComponent>(TEXT("Box"));
-	_boxComponent->SetupAttachment(RootComponent);
-	_boxComponent->SetGenerateOverlapEvents(false);
+	if (!_ownerActor.IsValid()) return;
+	if (_ownerActor == otherActor) return;
+	if (_ownerActor == otherActor->GetParentActor()) return;
 
-	_boxComponent->OnComponentBeginOverlap.AddDynamic(this,
-		&ADamageWeaponActorBase::BeginOverlap);
-}
-
-void ADamageWeaponActorBase::SetGenerateOverlapEvents(const bool generateOverlapEvents) const
-{
-	_boxComponent->SetGenerateOverlapEvents(generateOverlapEvents);
+	OnOverlapAnything(otherActor, otherComp);
+	OnDamageOtherActor(otherActor, otherComp);
 }

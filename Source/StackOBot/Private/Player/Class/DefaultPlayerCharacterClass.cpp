@@ -1,9 +1,11 @@
 ﻿#include "Player/Class/DefaultPlayerCharacterClass.h"
 
+#include <Components/BoxComponent.h>
+#include <Kismet/GameplayStatics.h>
+
 #include "Player/PlayerCharacterAnimInstanceBase.h"
 #include "Player/PlayerCharacterBase.h"
 #include "Weapons/DamageWeaponActorBase.h"
-#include "Weapons/WeaponActorBase.h"
 
 FDefaultCharacterClassInitializationInfo::FDefaultCharacterClassInitializationInfo(
 const TWeakObjectPtr<APlayerCharacterControllerBase>& controller,
@@ -12,19 +14,20 @@ const TWeakObjectPtr<APlayerCharacterControllerBase>& controller,
 	const float movementSpeedDebuff,
 	const float lookToDirectionAcceleration,
 	const FName& resourceItemSocketName,
-	const TWeakObjectPtr<ADamageWeaponActorBase>& weapon) : FCharacterClassInitializationInfo(
+	ADamageWeaponActorBase* weapon,
+	UBoxComponent* hitBox) : FCharacterClassInitializationInfo(
 		controller, character, movementSpeed, movementSpeedDebuff,
 		lookToDirectionAcceleration, resourceItemSocketName),
-	Weapon(weapon)
+	Weapon(weapon),
+	HitBox(hitBox)
 {
 	//
 }
 
 void UDefaultPlayerCharacterClass::ChangeWeaponHitEnabled(bool hitEnabled) const
 {
-	if (!_theStickWeapon.IsValid()) return;
-
-	_theStickWeapon->SetGenerateOverlapEvents(hitEnabled);
+	_hitBox->SetGenerateOverlapEvents(hitEnabled);
+	_hitBox->UpdateOverlaps();
 }
 
 void UDefaultPlayerCharacterClass::Initialize(const FCharacterClassInitializationInfo& info)
@@ -37,6 +40,7 @@ void UDefaultPlayerCharacterClass::Initialize(const FDefaultCharacterClassInitia
 	Super::Initialize(info);
 
 	_theStickWeapon = info.Weapon;
+	_hitBox = info.HitBox;
 	
 	if (_character->HasAuthority())
 	{
@@ -49,10 +53,16 @@ void UDefaultPlayerCharacterClass::Initialize(const FDefaultCharacterClassInitia
 	_animInstance->PrimaryAttackFinished = [this]
 	{
 		_shouldDebuffMovement = false;
-		_theStickWeapon->SetGenerateOverlapEvents(false);
+		_hitBox->SetGenerateOverlapEvents(false);
 	};
 
 	_theStickWeapon->SetActorHiddenInGame(false);
+
+	if (_character->HasAuthority())
+	{
+		_hitBox->OnComponentBeginOverlap.AddDynamic(_theStickWeapon.Get(),
+			&ADamageWeaponActorBase::OnBeginOverlap);
+	}
 }
 
 void UDefaultPlayerCharacterClass::DeInitialize()
@@ -79,7 +89,7 @@ bool UDefaultPlayerCharacterClass::TakeHit()
 	if (Super::TakeHit())
 	{
 		_shouldDebuffMovement = true;
-		_theStickWeapon->SetGenerateOverlapEvents(false);
+		_hitBox->SetGenerateOverlapEvents(false);
 
 		return true;
 	}

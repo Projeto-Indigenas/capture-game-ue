@@ -14,7 +14,7 @@ class STACKOBOT_API AWeaponActorBase : public AActor
 
 protected:
 	TWeakObjectPtr<AActor> _ownerActor;
-	
+
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly)
 	UStaticMeshComponent* _staticMeshComponent;
 	

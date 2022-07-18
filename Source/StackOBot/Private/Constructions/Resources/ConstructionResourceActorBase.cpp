@@ -1,9 +1,14 @@
 ﻿#include "Constructions/Resources/ConstructionResourceActorBase.h"
 
 #include "Constructions/Resources/ConstructionResourcePieceActorBase.h"
+#include "Weapons/Bow/ArrowActorBase.h"
 
-void AConstructionResourceActorBase::TakeAnyDamage(AActor* damagedActor, float damage,
-                                                   const UDamageType* damageType, AController* instigatedBy, AActor* damageCauser)
+bool AConstructionResourceActorBase::IsHittableByActor(AActor* damageCauser)
+{
+	return !damageCauser->IsA<AArrowActorBase>();
+}
+
+void AConstructionResourceActorBase::TakeHit(AActor* damageCauser, const float damage)
 {
 	if (++_hitCounter == _hitsToDismantle)
 	{
@@ -19,12 +24,4 @@ void AConstructionResourceActorBase::TakeAnyDamage(AActor* damagedActor, float d
 
 		Destroy();
 	}
-}
-
-void AConstructionResourceActorBase::BeginPlay()
-{
-	Super::BeginPlay();
-
-	OnTakeAnyDamage.AddDynamic(this,
-		&AConstructionResourceActorBase::TakeAnyDamage);
 }

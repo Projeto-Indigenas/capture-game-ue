@@ -104,6 +104,7 @@ void UArcherPlayerCharacterClass::Tick(float deltaSeconds)
 
 bool UArcherPlayerCharacterClass::SetAimDirection(const FVector2D& directionVector)
 {
+	if (directionVector.IsZero()) return false;
 	if (_lastKnownDirection.GetTarget2D() == directionVector) return false;
 
 	_lastKnownDirection = directionVector;
@@ -118,12 +119,15 @@ FVector2D UArcherPlayerCharacterClass::GetAimDirection() const
 
 bool UArcherPlayerCharacterClass::PrimaryAttack(const bool pressed)
 {
+	if (!pressed && !_bowWeapon->CanFlyArrow()) return false;
+	
 	const bool result = Super::PrimaryAttack(pressed);
+	
 	if (result)
 	{
 		if (pressed)
 		{
-			_lastKnownDirection = Super::GetMovementDirection();
+			_lastKnownDirection = _character->GetActorRotation().Vector();
 		}
 		else
 		{

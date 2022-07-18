@@ -10,7 +10,6 @@
 #include "Player/Class/PlayerCharacterClassBase.h"
 #include "Player/Class/ArcherPlayerCharacterClass.h"
 #include "Constructions/Resources/ConstructionResourcePieceActorBase.h"
-#include "Weapons/DamageWeaponActorBase.h"
 #include "Weapons/Bow/BowActorBase.h"
 
 DEFINE_LOG_CATEGORY(PlayerCharacter);
@@ -111,6 +110,11 @@ ABowActorBase* APlayerCharacterBase::GetTheBow_Implementation()
 	return nullptr;
 }
 
+UBoxComponent* APlayerCharacterBase::GetHitBox_Implementation()
+{
+	return nullptr;
+}
+
 void APlayerCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
@@ -130,12 +134,8 @@ void APlayerCharacterBase::Initialize(APlayerCharacterControllerBase* controller
 	_currentLifePoints = _initialLifePoints;
 
 	_playerController = controller;
-	_theStickWeapon = GetTheStick();
-	_theBowWeapon = GetTheBow();
-	
-	CreateOrUpdateCharacterClass();
 
-	OnTakeAnyDamage.AddDynamic(this, &APlayerCharacterBase::TakeAnyDamage);
+	CreateOrUpdateCharacterClass();
 }
 
 void APlayerCharacterBase::Tick(float deltaSeconds)
@@ -169,6 +169,28 @@ void APlayerCharacterBase::OnMovementModeChanged(EMovementMode PrevMovementMode,
 			_playerCharacterClass->OnLanded();
 		}
 	}
+}
+
+void APlayerCharacterBase::TakeHit(AActor* damageCauser, const float damage)
+{
+	LogOnScreen(FString::Printf(
+		TEXT("TakeDamage - taking %f points, current life %f, damage cause %s, damage receiver %s"),
+		damage, _currentLifePoints, *damageCauser->GetName(), *GetName()));
+	
+	_currentLifePoints = FMath::Max(0, _currentLifePoints -= damage);
+	
+	_playerCharacterClass->TakeHit();
+	
+	if (_currentLifePoints > 0)
+	{
+		ReplicateTakeDamage_Clients(damage);
+		
+		return;
+	}
+
+	ReplicateCharacterDeath_Clients();
+	
+	CharacterDied();
 }
 
 void APlayerCharacterBase::SetMovementDirection(const FVector2D& directionVector)
@@ -244,13 +266,14 @@ void APlayerCharacterBase::CreateOrUpdateCharacterClass()
 	case ECharacterClassType::Default:
 		{
 			UDefaultPlayerCharacterClass* characterClass = NewObject<UDefaultPlayerCharacterClass>(this);
-	
+
 			const FDefaultCharacterClassInitializationInfo classInfo(
 				_playerController, this, _movementSpeed,
 				_movementSpeedDebuff,
 				_lookToDirectionAcceleration,
 				_resourceItemSocketName,
-				_theStickWeapon);
+				GetTheStick(),
+				GetHitBox());
 	
 			characterClass->Initialize(classInfo);
 
@@ -268,7 +291,7 @@ void APlayerCharacterBase::CreateOrUpdateCharacterClass()
 				_movementSpeedDebuff,
 				_lookToDirectionAcceleration,
 				_resourceItemSocketName,
-				_theBowWeapon);
+				GetTheBow());
 
 			characterClass->Initialize(classInfo);
 
@@ -286,36 +309,10 @@ void APlayerCharacterBase::CreateOrUpdateCharacterClass()
 	}
 }
 
-void APlayerCharacterBase::TakeAnyDamage(AActor* damagedActor, float damage, const UDamageType* damageType,
-	AController* instigatedBy, AActor* damageCauser)
-{
-	LogOnScreen(FString::Printf(
-		TEXT("TakeDamage - taking %f points, current life %f, damage cause %s, damage receiver %s"),
-		damage, _currentLifePoints, *damageCauser->GetName(), *GetName()));
-	
-	_currentLifePoints = FMath::Max(0, _currentLifePoints -= damage);
-	
-	_playerCharacterClass->TakeHit();
-	
-	if (_currentLifePoints > 0)
-	{
-		ReplicateTakeDamage_Clients(damage);
-		
-		return;
-	}
-
-	ReplicateCharacterDeath_Clients();
-	
-	CharacterDied();
-}
-
 void APlayerCharacterBase::CharacterDied() const
 {
 	LogOnScreen(TEXT("Setting character to ragdoll on death"));
 
-	// TODO(anderson): this should cease to exist when moving the collision box to the character
-	_theStickWeapon->SetGenerateOverlapEvents(false);
-	
 	GetMesh()->SetSimulatePhysics(true);
 	GetCapsuleComponent()->DestroyComponent();
 

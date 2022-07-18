@@ -5,10 +5,12 @@
 #include "DefaultPlayerCharacterClass.generated.h"
 
 class ADamageWeaponActorBase;
+class UBoxComponent;
 
 struct STACKOBOT_API FDefaultCharacterClassInitializationInfo : FCharacterClassInitializationInfo
 {
-	const TWeakObjectPtr<ADamageWeaponActorBase>& Weapon = nullptr;
+	ADamageWeaponActorBase* Weapon = nullptr;
+	UBoxComponent* HitBox = nullptr;
 
 	FDefaultCharacterClassInitializationInfo(
 		const TWeakObjectPtr<APlayerCharacterControllerBase>& controller,
@@ -17,7 +19,8 @@ struct STACKOBOT_API FDefaultCharacterClassInitializationInfo : FCharacterClassI
 		const float movementSpeedDebuff,
 		const float lookToDirectionAcceleration,
 		const FName& resourceItemSocketName,
-		const TWeakObjectPtr<ADamageWeaponActorBase>& weapon);
+		ADamageWeaponActorBase* weapon,
+		UBoxComponent* hitBox);
 };
 
 UCLASS()
@@ -26,6 +29,7 @@ class STACKOBOT_API UDefaultPlayerCharacterClass : public UPlayerCharacterClassB
 	GENERATED_BODY()
 
 	TWeakObjectPtr<ADamageWeaponActorBase> _theStickWeapon;
+	TWeakObjectPtr<UBoxComponent> _hitBox;
 
 	void ChangeWeaponHitEnabled(bool hitEnabled) const;
 

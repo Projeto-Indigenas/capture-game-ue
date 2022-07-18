@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Hittables/Hittable.h"
 #include "PlayerCharacterBase.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(PlayerCharacter, Log, All);
@@ -10,21 +11,20 @@ class AConstructionResourcePieceActorBase;
 class AConstructionBuildingBase;
 class APlayerCharacterControllerBase;
 class APlayerCharacterRagdollBase;
-class ADamageWeaponActorBase;
 class ABowActorBase;
+class ADamageWeaponActorBase;
 class APlayerCameraActor;
 class UPlayerCharacterClassBase;
 class UPlayerCharacterAnimInstanceBase;
+class UBoxComponent;
 enum class ECharacterClassType : uint8;
 
 UCLASS(Abstract, Blueprintable)
-class STACKOBOT_API APlayerCharacterBase : public ACharacter
+class STACKOBOT_API APlayerCharacterBase : public ACharacter, public IHittable
 {
 	GENERATED_BODY()
 
 	TWeakObjectPtr<APlayerCharacterControllerBase> _playerController;
-	TWeakObjectPtr<ADamageWeaponActorBase> _theStickWeapon;
-	TWeakObjectPtr<ABowActorBase> _theBowWeapon;
 	
 	UPROPERTY()
 	UPlayerCharacterClassBase* _playerCharacterClass;
@@ -54,10 +54,6 @@ class STACKOBOT_API APlayerCharacterBase : public ACharacter
 
 	UFUNCTION(NetMulticast, Unreliable)
 	void ReplicatePrimaryAttack_Clients(const bool pressed);
-
-	UFUNCTION()
-	void TakeAnyDamage(AActor* damagedActor, float damage, const UDamageType* damageType,
-		AController* instigatedBy, AActor* damageCauser);
 
 	UFUNCTION(NetMulticast, Unreliable)
 	void ReplicateTakeDamage_Clients(float damage);
@@ -107,6 +103,9 @@ protected:
 	UFUNCTION(BlueprintNativeEvent)
 	ABowActorBase* GetTheBow();
 
+	UFUNCTION(BlueprintNativeEvent)
+	UBoxComponent* GetHitBox();
+
 	virtual void BeginPlay() override;
 
 public:
@@ -118,6 +117,9 @@ public:
 	virtual void Tick(float deltaSeconds) override;
 	virtual void Falling() override;
 	virtual void OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode) override;
+
+	UFUNCTION()
+	virtual void TakeHit(AActor* damageCauser, const float damage) override;
 	
 	void SetMovementDirection(const FVector2D& directionVector);
 	void SetAimDirection(const FVector2D& directionVector);
