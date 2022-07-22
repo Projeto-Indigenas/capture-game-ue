@@ -7,7 +7,6 @@
 #include "Player/PlayerCharacterControllerBase.h"
 #include "Constructions/Building/ConstructionBuildingBase.h"
 #include "Constructions/Resources/ConstructionResourcePieceActorBase.h"
-#include "Misc/NetHelpers.h"
 #include "Player/Class/CharacterClassType.h"
 
 FCharacterClassInitializationInfo::FCharacterClassInitializationInfo(
@@ -84,26 +83,6 @@ void UPlayerCharacterClassBase::UpdateCharacterRotation(const FVector& direction
 	}
 }
 
-void UPlayerCharacterClassBase::ReplicatePrimaryAttack_Server_Implementation(const bool pressed)
-{
-	PrimaryAttack(pressed, true);
-}
-
-void UPlayerCharacterClassBase::ReplicatePrimaryAttack_Clients_Implementation(const bool pressed)
-{
-	PrimaryAttack(pressed, true);
-}
-
-void UPlayerCharacterClassBase::ReplicateSetMovementDirection_Server_Implementation(const FVector2D& direction)
-{
-	SetMovementDirection(direction);
-}
-
-void UPlayerCharacterClassBase::ReplicateSetMovementDirection_Clients_Implementation(const FVector2D& direction)
-{
-	SetMovementDirection(direction);
-}
-
 void UPlayerCharacterClassBase::Initialize(const FCharacterClassInitializationInfo& info)
 {
 	_controller = info.Controller;
@@ -170,16 +149,13 @@ void UPlayerCharacterClassBase::OnLanded()
 	_animInstance->SetFalling(false);
 }
 
-void UPlayerCharacterClassBase::SetMovementDirection(const FVector2D& directionVector)
+bool UPlayerCharacterClassBase::SetMovementDirection(const FVector2D& directionVector)
 {
-	if (_directionVector.GetTarget2D() == directionVector) return;
+	if (_directionVector.GetTarget2D() == directionVector) return false;
 	
 	_directionVector = directionVector;
 
-	TLocalRoleHelper<UPlayerCharacterClassBase, const FVector2D&>()
-		.Authority(this, &UPlayerCharacterClassBase::ReplicateSetMovementDirection_Clients)
-		.AutonomousProxy(this, &UPlayerCharacterClassBase::ReplicateSetMovementDirection_Server)
-		.Switch(_character.Get(), directionVector);
+	return true;
 }
 
 FVector2D UPlayerCharacterClassBase::GetMovementDirection() const
@@ -211,17 +187,7 @@ bool UPlayerCharacterClassBase::PrimaryAttack(const bool pressed, const bool isR
 {
 	if (_animInstance->IsCarryingItem()) return false;
 
-	if (_animInstance->SetPrimaryAttack(pressed, isReplicated))
-	{
-		TLocalRoleHelper<UPlayerCharacterClassBase, const bool>()
-			.Authority(this, &UPlayerCharacterClassBase::ReplicatePrimaryAttack_Clients)
-			.AutonomousProxy(this, &UPlayerCharacterClassBase::ReplicatePrimaryAttack_Server)
-			.Switch(_character.Get(), pressed);
-		
-		return true;
-	}
-
-	return false;
+	return _animInstance->SetPrimaryAttack(pressed, isReplicated);
 }
 
 bool UPlayerCharacterClassBase::TakeHit()

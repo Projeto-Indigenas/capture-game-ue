@@ -64,18 +64,6 @@ protected:
 
 	virtual FVector2D GetMovementDirection(const FVector2D& direction);
 	virtual void UpdateCharacterRotation(const FVector& direction);
-
-	UFUNCTION(Server, Reliable)
-	virtual void ReplicatePrimaryAttack_Server(const bool pressed);
-
-	UFUNCTION(NetMulticast, Reliable)
-	virtual void ReplicatePrimaryAttack_Clients(const bool pressed);
-
-	UFUNCTION(Server, Unreliable)
-	virtual void ReplicateSetMovementDirection_Server(const FVector2D& direction);
-
-	UFUNCTION(NetMulticast, Unreliable)
-	virtual void ReplicateSetMovementDirection_Clients(const FVector2D& direction);
 	
 public:
 	virtual void Initialize(const FCharacterClassInitializationInfo& info);
@@ -87,7 +75,7 @@ public:
 	virtual void OnFalling();
 	virtual void OnLanded();
 
-	virtual void SetMovementDirection(const FVector2D& directionVector);
+	virtual bool SetMovementDirection(const FVector2D& directionVector);
 	virtual FVector2D GetMovementDirection() const;
 
 	virtual void SetAimDirection(const FVector2D& directionVector);

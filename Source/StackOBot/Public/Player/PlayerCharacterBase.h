@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Hittables/Hittable.h"
+#include "Misc/NetHelpers.h"
 #include "PlayerCharacterBase.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(PlayerCharacter, Log, All);
@@ -25,9 +26,12 @@ class STACKOBOT_API APlayerCharacterBase : public ACharacter, public IHittable
 	GENERATED_BODY()
 
 	TWeakObjectPtr<APlayerCharacterControllerBase> _playerController;
-	
+
 	UPROPERTY()
 	UPlayerCharacterClassBase* _playerCharacterClass;
+
+	TLocalRoleHelper<APlayerCharacterBase, const FVector2D&> _setMovementDirectionSwitcher;
+	TLocalRoleHelper<APlayerCharacterBase, const bool> _primaryAttackSwitcher;
 	
 	void LogOnScreen(const FString& message) const;
 
@@ -37,7 +41,18 @@ class STACKOBOT_API APlayerCharacterBase : public ACharacter, public IHittable
 	UFUNCTION(NetMulticast, Unreliable)
 	void ReplicateCharacterDeath_Clients();
 
-	// TODO(anderson): move this to the class implementation
+	UFUNCTION(Server, Reliable)
+	void ReplicatePrimaryAttack_Server(const bool pressed);
+
+	UFUNCTION(NetMulticast, Reliable)
+	void ReplicatePrimaryAttack_Clients(const bool pressed);
+
+	UFUNCTION(Server, Unreliable)
+	void ReplicateSetMovementDirection_Server(const FVector2D& direction);
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void ReplicateSetMovementDirection_Clients(const FVector2D& direction);
+	
 	UFUNCTION(Server, Reliable)
 	void ReplicatePickUpItem_Server();
 
