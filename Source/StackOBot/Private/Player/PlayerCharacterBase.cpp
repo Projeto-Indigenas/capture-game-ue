@@ -32,60 +32,6 @@ void APlayerCharacterBase::LogOnScreen(const FString& message) const
 	UE_LOG(PlayerCharacter, Log, TEXT("%s"), *debugMessage)
 }
 
-void APlayerCharacterBase::ReplicateAimDirection_Server_Implementation(const FVector2D& directionVector)
-{
-	if (_playerCharacterClass->SetAimDirection(directionVector))
-	{
-		ReplicateAimDirection_Clients(directionVector);
-	}
-}
-
-void APlayerCharacterBase::ReplicateAimDirection_Clients_Implementation(const FVector2D& directionVector)
-{
-	_playerCharacterClass->SetAimDirection(directionVector);	
-}
-
-void APlayerCharacterBase::ReplicateMovementDirection_Server_Implementation(const FVector2D& directionVector)
-{
-	if (_playerCharacterClass->SetMovementDirection(directionVector))
-	{
-		ReplicateMovementDirection_Clients(directionVector);
-	}
-}
-
-void APlayerCharacterBase::ReplicateMovementDirection_Clients_Implementation(const FVector2D& directionVector)
-{
-	if (!IsValid(_playerCharacterClass)) return;
-	
-	_playerCharacterClass->SetMovementDirection(directionVector);
-}
-
-void APlayerCharacterBase::ReplicateRequestJump_Server_Implementation()
-{
-	if (_playerCharacterClass->Jump())
-	{
-		ReplicateRequestJump_Clients();
-	}
-}
-
-void APlayerCharacterBase::ReplicateRequestJump_Clients_Implementation()
-{
-	_playerCharacterClass->Jump();
-}
-
-void APlayerCharacterBase::ReplicatePrimaryAttack_Server_Implementation(const bool pressed)
-{
-	if (_playerCharacterClass->PrimaryAttack(pressed))
-	{
-		ReplicatePrimaryAttack_Clients(pressed);
-	}
-}
-
-void APlayerCharacterBase::ReplicatePrimaryAttack_Clients_Implementation(const bool pressed)
-{
-	_playerCharacterClass->PrimaryAttack(pressed);
-}
-
 void APlayerCharacterBase::ReplicatePickUpItem_Server_Implementation()
 {
 	PickDropItem();
@@ -122,26 +68,6 @@ void APlayerCharacterBase::BeginPlay()
 
 	_playerController = Cast<APlayerCharacterControllerBase>(GetController());
 	Initialize(_playerController.Get());
-}
-
-void APlayerCharacterBase::BeginDestroy()
-{
-	Super::BeginDestroy();
-
-	if (!HasAuthority()) return;
-	
-	TArray<AActor*> actors;
-	GetAttachedActors(actors, true, true);
-
-	actors = actors.FilterByPredicate([](const AActor* actor)
-	{
-		return actor->IsA<AArrowActorBase>();
-	});
-
-	for (AActor* actor : actors)
-	{
-		actor->Destroy();
-	}
 }
 
 void APlayerCharacterBase::Initialize(APlayerCharacterControllerBase* controller)
@@ -214,38 +140,26 @@ void APlayerCharacterBase::TakeHit(AActor* damageCauser, const float damage)
 	CharacterDied();
 }
 
-void APlayerCharacterBase::SetMovementDirection(const FVector2D& directionVector)
+void APlayerCharacterBase::SetMovementDirection(const FVector2D& directionVector) const
 {
-	if (_playerCharacterClass->SetMovementDirection(directionVector))
-	{
-		ReplicateMovementDirection_Server(directionVector);
-	}
+	_playerCharacterClass->SetMovementDirection(directionVector);
 }
 
-void APlayerCharacterBase::SetAimDirection(const FVector2D& directionVector)
+void APlayerCharacterBase::SetAimDirection(const FVector2D& directionVector) const
 {
-	if (_playerCharacterClass->SetAimDirection(directionVector))
-	{
-		ReplicateAimDirection_Server(directionVector);
-	}
+	_playerCharacterClass->SetAimDirection(directionVector);
 }
 
-void APlayerCharacterBase::PrimaryAttack(const bool pressed)
+void APlayerCharacterBase::PrimaryAttack(const bool pressed) const
 {
 	if (!IsValid(_playerCharacterClass)) return;
-	
-	if (_playerCharacterClass->PrimaryAttack(pressed))
-	{
-		ReplicatePrimaryAttack_Server(pressed);
-	}
+
+	_playerCharacterClass->PrimaryAttack(pressed, false);
 }
 
-void APlayerCharacterBase::RequestJump()
+void APlayerCharacterBase::RequestJump() const
 {
-	if (_playerCharacterClass->Jump())
-	{
-		ReplicateRequestJump_Server();
-	}
+	_playerCharacterClass->Jump();
 }
 
 void APlayerCharacterBase::PickUpItem()

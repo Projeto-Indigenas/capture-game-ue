@@ -7,6 +7,7 @@
 #include "Player/PlayerCharacterControllerBase.h"
 #include "Constructions/Building/ConstructionBuildingBase.h"
 #include "Constructions/Resources/ConstructionResourcePieceActorBase.h"
+#include "Misc/NetHelpers.h"
 #include "Player/Class/CharacterClassType.h"
 
 FCharacterClassInitializationInfo::FCharacterClassInitializationInfo(
@@ -83,6 +84,26 @@ void UPlayerCharacterClassBase::UpdateCharacterRotation(const FVector& direction
 	}
 }
 
+void UPlayerCharacterClassBase::ReplicatePrimaryAttack_Server_Implementation(const bool pressed)
+{
+	PrimaryAttack(pressed, true);
+}
+
+void UPlayerCharacterClassBase::ReplicatePrimaryAttack_Clients_Implementation(const bool pressed)
+{
+	PrimaryAttack(pressed, true);
+}
+
+void UPlayerCharacterClassBase::ReplicateSetMovementDirection_Server_Implementation(const FVector2D& direction)
+{
+	SetMovementDirection(direction);
+}
+
+void UPlayerCharacterClassBase::ReplicateSetMovementDirection_Clients_Implementation(const FVector2D& direction)
+{
+	SetMovementDirection(direction);
+}
+
 void UPlayerCharacterClassBase::Initialize(const FCharacterClassInitializationInfo& info)
 {
 	_controller = info.Controller;
@@ -149,13 +170,16 @@ void UPlayerCharacterClassBase::OnLanded()
 	_animInstance->SetFalling(false);
 }
 
-bool UPlayerCharacterClassBase::SetMovementDirection(const FVector2D& directionVector)
+void UPlayerCharacterClassBase::SetMovementDirection(const FVector2D& directionVector)
 {
-	if (_directionVector.GetTarget2D() == directionVector) return false;
+	if (_directionVector.GetTarget2D() == directionVector) return;
 	
 	_directionVector = directionVector;
 
-	return true;
+	TLocalRoleHelper<UPlayerCharacterClassBase, const FVector2D&>()
+		.Authority(this, &UPlayerCharacterClassBase::ReplicateSetMovementDirection_Clients)
+		.AutonomousProxy(this, &UPlayerCharacterClassBase::ReplicateSetMovementDirection_Server)
+		.Switch(_character.Get(), directionVector);
 }
 
 FVector2D UPlayerCharacterClassBase::GetMovementDirection() const
@@ -163,9 +187,9 @@ FVector2D UPlayerCharacterClassBase::GetMovementDirection() const
 	return _directionVector;
 }
 
-bool UPlayerCharacterClassBase::SetAimDirection(const FVector2D& directionVector)
+void UPlayerCharacterClassBase::SetAimDirection(const FVector2D& directionVector)
 {
-	return false;
+	// to be overriden
 }
 
 FVector2D UPlayerCharacterClassBase::GetAimDirection() const
@@ -173,24 +197,31 @@ FVector2D UPlayerCharacterClassBase::GetAimDirection() const
 	return FVector2D::ZeroVector;
 }
 
-bool UPlayerCharacterClassBase::Jump()
+void UPlayerCharacterClassBase::Jump()
 {
 	if (!_carryingPiece.IsValid() && _character->CanJump())
 	{
 		_character->Jump();
 
 		_animInstance->SetJumping(true);
+	}
+}
 
+bool UPlayerCharacterClassBase::PrimaryAttack(const bool pressed, const bool isReplicated)
+{
+	if (_animInstance->IsCarryingItem()) return false;
+
+	if (_animInstance->SetPrimaryAttack(pressed, isReplicated))
+	{
+		TLocalRoleHelper<UPlayerCharacterClassBase, const bool>()
+			.Authority(this, &UPlayerCharacterClassBase::ReplicatePrimaryAttack_Clients)
+			.AutonomousProxy(this, &UPlayerCharacterClassBase::ReplicatePrimaryAttack_Server)
+			.Switch(_character.Get(), pressed);
+		
 		return true;
 	}
 
 	return false;
-}
-
-bool UPlayerCharacterClassBase::PrimaryAttack(const bool pressed)
-{
-	if (_animInstance->IsCarryingItem()) return false;
-	return _animInstance->SetPrimaryAttack(pressed);
 }
 
 bool UPlayerCharacterClassBase::TakeHit()

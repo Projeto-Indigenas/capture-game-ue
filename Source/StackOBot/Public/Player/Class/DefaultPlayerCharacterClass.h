@@ -40,6 +40,6 @@ public:
 	virtual void Initialize(const FDefaultCharacterClassInitializationInfo& info);
 	virtual void DeInitialize() override;
 
-	virtual bool PrimaryAttack(const bool pressed) override;
+	virtual bool PrimaryAttack(const bool pressed, const bool isReplicated) override;
 	virtual bool TakeHit() override;
 };

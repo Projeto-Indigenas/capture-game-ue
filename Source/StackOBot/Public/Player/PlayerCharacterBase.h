@@ -31,36 +31,13 @@ class STACKOBOT_API APlayerCharacterBase : public ACharacter, public IHittable
 	
 	void LogOnScreen(const FString& message) const;
 
-	UFUNCTION(Server, Unreliable)
-	void ReplicateMovementDirection_Server(const FVector2D& directionVector);
-
-	UFUNCTION(NetMulticast, Unreliable)
-	void ReplicateMovementDirection_Clients(const FVector2D& directionVector);
-	
-	UFUNCTION(Server, Unreliable)
-	void ReplicateAimDirection_Server(const FVector2D& directionVector);
-
-	UFUNCTION(NetMulticast, Unreliable)
-	void ReplicateAimDirection_Clients(const FVector2D& directionVector);
-
-	UFUNCTION(Server, Unreliable)
-	void ReplicateRequestJump_Server();
-
-	UFUNCTION(NetMulticast, Unreliable)
-	void ReplicateRequestJump_Clients();
-
-	UFUNCTION(Server, Unreliable)
-	void ReplicatePrimaryAttack_Server(const bool pressed);
-
-	UFUNCTION(NetMulticast, Unreliable)
-	void ReplicatePrimaryAttack_Clients(const bool pressed);
-
 	UFUNCTION(NetMulticast, Unreliable)
 	void ReplicateTakeDamage_Clients(float damage);
 
 	UFUNCTION(NetMulticast, Unreliable)
 	void ReplicateCharacterDeath_Clients();
 
+	// TODO(anderson): move this to the class implementation
 	UFUNCTION(Server, Reliable)
 	void ReplicatePickUpItem_Server();
 
@@ -69,6 +46,7 @@ class STACKOBOT_API APlayerCharacterBase : public ACharacter, public IHittable
 
 	UFUNCTION(NetMulticast, Reliable)
 	void ReplicateDropItem_Clients(AConstructionResourcePieceActorBase* piece);
+	// end TODO
 	
 	void CharacterDied() const;
 	void PickDropItem();
@@ -108,8 +86,6 @@ protected:
 
 	virtual void BeginPlay() override;
 
-	virtual void BeginDestroy() override;
-
 public:
 	TDelegate<void()> OnCharacterDeath;
 
@@ -123,9 +99,9 @@ public:
 	UFUNCTION()
 	virtual void TakeHit(AActor* damageCauser, const float damage) override;
 	
-	void SetMovementDirection(const FVector2D& directionVector);
-	void SetAimDirection(const FVector2D& directionVector);
-	void PrimaryAttack(const bool pressed);
-	void RequestJump();
+	void SetMovementDirection(const FVector2D& directionVector) const;
+	void SetAimDirection(const FVector2D& directionVector) const;
+	void PrimaryAttack(const bool pressed) const;
+	void RequestJump() const;
 	void PickUpItem();
 };

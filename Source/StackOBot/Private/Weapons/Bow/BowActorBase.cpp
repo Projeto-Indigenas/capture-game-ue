@@ -1,6 +1,7 @@
 ﻿#include "Weapons/Bow/BowActorBase.h"
 
 #include <Kismet/GameplayStatics.h>
+#include <Net/UnrealNetwork.h>
 
 #include "Weapons/Bow/ArrowActorBase.h"
 
@@ -38,4 +39,11 @@ void ABowActorBase::FlyArrowFly(const FVector& direction, const float impulseMul
 	if (!IsValid(spawnedActor)) return;
 	
 	spawnedActor->Destroy();
+}
+
+void ABowActorBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ABowActorBase, _lastArrowFlyTime);
 }

@@ -11,6 +11,7 @@ class STACKOBOT_API ABowActorBase : public AWeaponActorBase
 {
 	GENERATED_BODY()
 
+	UPROPERTY(Replicated)
 	float _lastArrowFlyTime = 0.0f;
 
 	bool CanFlyArrow(const float now) const;

@@ -72,16 +72,18 @@ void UDefaultPlayerCharacterClass::DeInitialize()
 	_theStickWeapon->SetActorHiddenInGame(true);
 }
 
-bool UDefaultPlayerCharacterClass::PrimaryAttack(const bool pressed)
+bool UDefaultPlayerCharacterClass::PrimaryAttack(const bool pressed, const bool isReplicated)
 {
 	if (!pressed) return false;
-	if (_animInstance->IsCarryingItem()) return false;
 	if (_animInstance->IsAttacking()) return false;
 
-	_animInstance->SetPrimaryAttack(true);
-	_shouldDebuffMovement = true;
-
-	return true;
+	if (Super::PrimaryAttack(pressed, isReplicated))
+	{
+		_shouldDebuffMovement = true;
+		return true;
+	}
+	
+	return false;
 }
 
 bool UDefaultPlayerCharacterClass::TakeHit()

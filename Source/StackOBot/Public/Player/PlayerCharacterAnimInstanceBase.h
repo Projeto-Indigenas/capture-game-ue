@@ -61,7 +61,7 @@ public:
 	void SetCharacterClass(const ECharacterClassType classType);
 	
 	bool SetMovementDirection(const FVector2D& direction);
-	bool SetPrimaryAttack(const bool attack);
+	bool SetPrimaryAttack(const bool attack, const bool force = false);
 	bool TakeHit();
 	
 	void SetJumping(const bool jumping);

@@ -1,5 +1,7 @@
 #include "Player/PlayerCharacterAnimInstanceBase.h"
 
+#include <Net/UnrealNetwork.h>
+
 void UPlayerCharacterAnimInstanceBase::NotifyPrimaryAttackFinished()
 {
 	_primaryAttack = false;
@@ -58,9 +60,9 @@ bool UPlayerCharacterAnimInstanceBase::SetMovementDirection(const FVector2D& dir
 	return false;
 }
 
-bool UPlayerCharacterAnimInstanceBase::SetPrimaryAttack(const bool attack)
+bool UPlayerCharacterAnimInstanceBase::SetPrimaryAttack(const bool attack, const bool force)
 {
-	if (_primaryAttack != attack)
+	if (_primaryAttack != attack || force)
 	{
 		_primaryAttack = attack;
 		

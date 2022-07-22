@@ -44,15 +44,15 @@ class STACKOBOT_API UPlayerCharacterClassBase : public UObject
 	TWeakObjectPtr<AConstructionBuildingBase> _constructionBuilding;
 
 	UFUNCTION()
-	virtual void BeginOverlap(UPrimitiveComponent* overlappedComponent, AActor* otherActor,
+	void BeginOverlap(UPrimitiveComponent* overlappedComponent, AActor* otherActor,
 		UPrimitiveComponent* otherComp, int32 otherBodyIndex,
 		bool bFromSweep, const FHitResult& sweepResult);
 
 	UFUNCTION()
-	virtual void EndOverlap(UPrimitiveComponent* overlappedComponent, AActor* otherActor,
+	void EndOverlap(UPrimitiveComponent* overlappedComponent, AActor* otherActor,
 		UPrimitiveComponent* otherComp, int32 otherBodyIndex);
 
-	virtual void SetCarryingItem(const bool carrying);
+	void SetCarryingItem(const bool carrying);
 
 protected:
 	TWeakObjectPtr<APlayerCharacterControllerBase> _controller;
@@ -64,6 +64,18 @@ protected:
 
 	virtual FVector2D GetMovementDirection(const FVector2D& direction);
 	virtual void UpdateCharacterRotation(const FVector& direction);
+
+	UFUNCTION(Server, Reliable)
+	virtual void ReplicatePrimaryAttack_Server(const bool pressed);
+
+	UFUNCTION(NetMulticast, Reliable)
+	virtual void ReplicatePrimaryAttack_Clients(const bool pressed);
+
+	UFUNCTION(Server, Unreliable)
+	virtual void ReplicateSetMovementDirection_Server(const FVector2D& direction);
+
+	UFUNCTION(NetMulticast, Unreliable)
+	virtual void ReplicateSetMovementDirection_Clients(const FVector2D& direction);
 	
 public:
 	virtual void Initialize(const FCharacterClassInitializationInfo& info);
@@ -75,14 +87,14 @@ public:
 	virtual void OnFalling();
 	virtual void OnLanded();
 
-	virtual bool SetMovementDirection(const FVector2D& directionVector);
+	virtual void SetMovementDirection(const FVector2D& directionVector);
 	virtual FVector2D GetMovementDirection() const;
 
-	virtual bool SetAimDirection(const FVector2D& directionVector);
+	virtual void SetAimDirection(const FVector2D& directionVector);
 	virtual FVector2D GetAimDirection() const;
 	
-	virtual bool Jump();
-	virtual bool PrimaryAttack(const bool pressed);
+	virtual void Jump();
+	virtual bool PrimaryAttack(const bool pressed, const bool isReplicated);
 	virtual bool TakeHit();
 
 	void PickDropItem(

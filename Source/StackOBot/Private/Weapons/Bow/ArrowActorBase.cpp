@@ -10,19 +10,27 @@ void AArrowActorBase::DisableAndScheduleDestroy()
 {
 	_isFlying = false;
 
-	_boxComponent->SetComponentTickEnabled(false);
-	_boxComponent->SetGenerateOverlapEvents(false);
-	_boxComponent->DestroyComponent();
+	if (IsValid(_boxComponent))
+	{
+		_boxComponent->SetComponentTickEnabled(false);
+		_boxComponent->SetGenerateOverlapEvents(false);
+		_boxComponent->DestroyComponent();
+	}
+
+	if (!HasAuthority()) return;
 	
 	GetWorldTimerManager().SetTimer(_destroyTimerHandle, FTimerDelegate::CreateLambda([this]
 	{
+		GetWorldTimerManager().ClearTimer(_destroyTimerHandle);
+		
 		Destroy();
+
 	}), _delayToDestroy, false);
 }
 
 void AArrowActorBase::ReplicateDisable_Clients_Implementation(UPrimitiveComponent* otherComponent)
 {
-	_isFlying = false;
+	DisableAndScheduleDestroy();
 
 	if (!IsValid(otherComponent)) return;
 	
@@ -44,8 +52,6 @@ void AArrowActorBase::BeginPlay()
 {
 	Super::BeginPlay();
 
-	_physicsSettings = GetDefault<UPhysicsSettings>();
-
 	if (!HasAuthority())
 	{
 		_boxComponent->OnComponentBeginOverlap.RemoveDynamic(
@@ -54,14 +60,8 @@ void AArrowActorBase::BeginPlay()
 		_boxComponent->SetGenerateOverlapEvents(false);
 		_boxComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		_boxComponent->DestroyComponent();
+		_boxComponent = nullptr;
 	}
-}
-
-void AArrowActorBase::BeginDestroy()
-{
-	Super::BeginDestroy();
-
-	GetWorldTimerManager().ClearTimer(_destroyTimerHandle);
 }
 
 AArrowActorBase::AArrowActorBase() : ADamageWeaponActorBase()
@@ -95,8 +95,11 @@ void AArrowActorBase::Tick(float deltaSeconds)
 void AArrowActorBase::BeginFlying(AActor* ownerActor, const FVector& velocity)
 {
 	_ownerActor = ownerActor;
-	
-	_boxComponent->SetGenerateOverlapEvents(true);
+
+	if (HasAuthority())
+	{
+		_boxComponent->SetGenerateOverlapEvents(true);
+	}
 	
 	_velocity = velocity;
 	_isFlying = true;

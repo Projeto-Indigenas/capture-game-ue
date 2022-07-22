@@ -37,6 +37,8 @@ void UArcherPlayerCharacterClass::LetTheArrowFly()
 	_bowWeapon->FlyArrowFly(_lastKnownDirection.GetTarget(), 1.0f);
 	
 	_finishedReleasingArrow = false;
+
+	ReplicateLetTheArrowFly_Clients();
 }
 
 void UArcherPlayerCharacterClass::ReleaseArrowFinished()
@@ -44,10 +46,9 @@ void UArcherPlayerCharacterClass::ReleaseArrowFinished()
 	_finishedReleasingArrow = true;
 }
 
-void UArcherPlayerCharacterClass::ReplicateLetTheArrowFly_Server_Implementation(
-)
+void UArcherPlayerCharacterClass::ReplicateLetTheArrowFly_Clients_Implementation()
 {
-	LetTheArrowFly();
+	Super::PrimaryAttack(false, true);
 }
 
 FVector2D UArcherPlayerCharacterClass::GetMovementDirection(const FVector2D& direction)
@@ -111,14 +112,12 @@ void UArcherPlayerCharacterClass::Tick(float deltaSeconds)
 	_lastKnownDirection.Tick(deltaSeconds);
 }
 
-bool UArcherPlayerCharacterClass::SetAimDirection(const FVector2D& directionVector)
+void UArcherPlayerCharacterClass::SetAimDirection(const FVector2D& directionVector)
 {
-	if (directionVector.IsZero()) return false;
-	if (_lastKnownDirection.GetTarget2D() == directionVector) return false;
+	if (directionVector.IsZero()) return;
+	if (_lastKnownDirection.GetTarget2D() == directionVector) return;
 
 	_lastKnownDirection = directionVector;
-
-	return true;
 }
 
 FVector2D UArcherPlayerCharacterClass::GetAimDirection() const
@@ -126,13 +125,13 @@ FVector2D UArcherPlayerCharacterClass::GetAimDirection() const
 	return _lastKnownDirection;
 }
 
-bool UArcherPlayerCharacterClass::PrimaryAttack(const bool pressed)
+bool UArcherPlayerCharacterClass::PrimaryAttack(const bool pressed, const bool isReplicated)
 {
+	if (_animInstance->IsCarryingItem()) return false;
+	
 	if (!pressed && !_bowWeapon->CanFlyArrow()) return false;
-	
-	const bool result = Super::PrimaryAttack(pressed);
-	
-	if (result)
+
+	if (Super::PrimaryAttack(pressed, isReplicated))
 	{
 		if (pressed)
 		{
@@ -142,8 +141,11 @@ bool UArcherPlayerCharacterClass::PrimaryAttack(const bool pressed)
 		{
 			_finishedReleasingArrow = false;
 		}
+
+		return true;
 	}
-	return result;
+
+	return false;
 }
 
 ECharacterClassType UArcherPlayerCharacterClass::GetClassType() const

@@ -38,8 +38,8 @@ class STACKOBOT_API UArcherPlayerCharacterClass : public UPlayerCharacterClassBa
 	void LetTheArrowFly();
 	void ReleaseArrowFinished();
 
-	UFUNCTION(Server, Unreliable)
-	void ReplicateLetTheArrowFly_Server();
+	UFUNCTION(NetMulticast, Unreliable)
+	void ReplicateLetTheArrowFly_Clients();
 
 protected:
 	virtual FVector2D GetMovementDirection(const FVector2D& direction) override;
@@ -51,10 +51,10 @@ public:
 
 	virtual void Tick(float deltaSeconds) override;
 
-	virtual bool SetAimDirection(const FVector2D& directionVector) override;
+	virtual void SetAimDirection(const FVector2D& directionVector) override;
 	virtual FVector2D GetAimDirection() const override;
 
-	virtual bool PrimaryAttack(const bool pressed) override;
+	virtual bool PrimaryAttack(const bool pressed, const bool isReplicated) override;
 	
 	virtual ECharacterClassType GetClassType() const override;
 };

@@ -20,9 +20,6 @@ class STACKOBOT_API AArrowActorBase : public ADamageWeaponActorBase
 	UPROPERTY(Replicated)
 	bool _isFlying = false;
 
-	UPROPERTY()
-	const UPhysicsSettings* _physicsSettings;
-
 	void DisableAndScheduleDestroy();
 
 	UFUNCTION(NetMulticast, Unreliable)
@@ -38,8 +35,6 @@ protected:
 	virtual void OnOverlapAnything(AActor* otherActor, UPrimitiveComponent* otherComponent) override;
 	
 	virtual void BeginPlay() override;
-
-	virtual void BeginDestroy() override;
 
 public:
 	AArrowActorBase();
