@@ -1,52 +1,63 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "Functions/Functions.h"
 
-template<typename TType, typename ...TArgs>
-class TLocalRoleHelper
+template<typename TType, typename ... TArgs>
+struct TLocalRoleHelper
 {
-	typedef void(TType::*TSwitchFunction)(TArgs...);
+	typedef void(TType::*TTypedSwitchFunction)(TArgs...);
 	
-	TTuple<TType*, TSwitchFunction> _authority;
-	TTuple<TType*, TSwitchFunction> _autonomousProxy;
-	TTuple<TType*, TSwitchFunction> _simulatedProxy;
-
-	static void Execute(TType* owner, TSwitchFunction function, TArgs&...arguments)
+	TLocalRoleHelper& Authority(TType* owner, TTypedSwitchFunction function)
 	{
-		if (owner == nullptr) return;
-		if (function == nullptr) return;
-
-		(owner->*function)(arguments...);
-	}
-	
-public:
-	TLocalRoleHelper& Authority(TType* owner, TSwitchFunction function)
-	{
-		_authority = TTuple<TType*, TSwitchFunction>(owner, function);
-		return *this;
-	}
-	
-	TLocalRoleHelper& AutonomousProxy(TType* owner, TSwitchFunction function)
-	{
-		_autonomousProxy = TTuple<TType*, TSwitchFunction>(owner, function);
-		return *this;
-	}
-	
-	TLocalRoleHelper& SimulatedProxy(TType* owner, TSwitchFunction function)
-	{
-		_simulatedProxy = TTuple<TType*, TSwitchFunction>(owner, function);
+		_authorityPtr = MakeUnique<TMethodPtrStorage<TType, TArgs...>>(owner, function);
 		return *this;
 	}
 
-	void Switch(const AActor* actor, TArgs&...arguments)
+	TLocalRoleHelper& Authority(const TFunction<void(TArgs...)>& function)
+	{
+		_authorityPtr = MakeUnique<TFunctionStorage<void(TArgs...), TArgs...>>(function);
+		return *this;
+	}
+	
+	TLocalRoleHelper& AutonomousProxy(TType* owner, TTypedSwitchFunction function)
+	{
+		_autonomousProxyPtr = MakeUnique<TMethodPtrStorage<TType, TArgs...>>(owner, function);
+		return *this;
+	}
+
+	TLocalRoleHelper& AutonomousProxy(const TFunction<void(TArgs...)>& function)
+	{
+		_autonomousProxyPtr = MakeUnique<TFunctionStorage<void(TArgs...), TArgs...>>(function);
+		return *this;	
+	}
+	
+	TLocalRoleHelper& SimulatedProxy(TType* owner, TTypedSwitchFunction function)
+	{
+		_simulatedProxyPtr = MakeUnique<TMethodPtrStorage<TType, TArgs...>>(owner, function);
+		return *this;
+	}
+
+	TLocalRoleHelper& SimulatedProxy(const TFunction<void(TArgs...)>& function)
+	{
+		_simulatedProxyPtr = MakeUnique<TFunctionStorage<void(TArgs...), TArgs...>>(function);
+		return *this;
+	}
+
+	void Switch(const AActor* actor, TArgs...arguments)
 	{
 		if (!IsValid(actor)) return;
 	
 		switch (actor->GetLocalRole()) {
-		case ROLE_Authority: Execute(_authority.Key, _authority.Value, arguments...); break;
-		case ROLE_AutonomousProxy: Execute(_autonomousProxy.Key, _autonomousProxy.Value, arguments...); break;
-		case ROLE_SimulatedProxy: Execute(_simulatedProxy.Key, _simulatedProxy.Value, arguments...); break;
+		case ROLE_Authority: _authorityPtr->Execute(arguments...); break;
+		case ROLE_AutonomousProxy: _autonomousProxyPtr->Execute(arguments...); break;
+		case ROLE_SimulatedProxy: _simulatedProxyPtr->Execute(arguments...); break;
 		default: break;
 		}
 	}
+
+private:
+	TUniquePtr<IFunctionStorage<TArgs...>> _authorityPtr;
+	TUniquePtr<IFunctionStorage<TArgs...>> _autonomousProxyPtr;
+	TUniquePtr<IFunctionStorage<TArgs...>> _simulatedProxyPtr;
 };
