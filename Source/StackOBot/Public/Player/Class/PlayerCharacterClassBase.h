@@ -80,9 +80,10 @@ public:
 
 	virtual void SetAimDirection(const FVector2D& directionVector);
 	virtual FVector2D GetAimDirection() const;
+	virtual void LetTheArrowFly();
 	
 	virtual void Jump();
-	virtual bool PrimaryAttack(const bool pressed, const bool isReplicated);
+	virtual bool PrimaryAttack(const bool pressed);
 	virtual bool TakeHit();
 
 	void PickDropItem(

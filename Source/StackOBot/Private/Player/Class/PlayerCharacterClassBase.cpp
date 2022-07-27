@@ -173,6 +173,11 @@ FVector2D UPlayerCharacterClassBase::GetAimDirection() const
 	return FVector2D::ZeroVector;
 }
 
+void UPlayerCharacterClassBase::LetTheArrowFly()
+{
+	// to be overriden
+}
+
 void UPlayerCharacterClassBase::Jump()
 {
 	if (!_carryingPiece.IsValid() && _character->CanJump())
@@ -183,11 +188,11 @@ void UPlayerCharacterClassBase::Jump()
 	}
 }
 
-bool UPlayerCharacterClassBase::PrimaryAttack(const bool pressed, const bool isReplicated)
+bool UPlayerCharacterClassBase::PrimaryAttack(const bool pressed)
 {
 	if (_animInstance->IsCarryingItem()) return false;
 
-	return _animInstance->SetPrimaryAttack(pressed, isReplicated);
+	return _animInstance->SetPrimaryAttack(pressed);
 }
 
 bool UPlayerCharacterClassBase::TakeHit()

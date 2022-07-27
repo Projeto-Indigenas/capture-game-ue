@@ -1,5 +1,7 @@
 ﻿#include "Player/Class/ArcherPlayerCharacterClass.h"
 
+#include <stdbool.h>
+
 #include "Kismet/GameplayStatics.h"
 
 #include "Player/PlayerCameraActor.h"
@@ -15,11 +17,13 @@ const TWeakObjectPtr<APlayerCharacterControllerBase>& controller,
 	const float movementSpeed, const float movementSpeedDebuff,
 	const float lookToDirectionAcceleration,
 	const FName& resourceItemSocketName,
-	const TWeakObjectPtr<ABowActorBase>& bowWeapon) :
+	const TWeakObjectPtr<ABowActorBase>& bowWeapon,
+	const TLocalRoleHelper<APlayerCharacterBase, void>& letTheArrowFlyFunction) :
 	FCharacterClassInitializationInfo(
 		controller, character, movementSpeed, movementSpeedDebuff,
 		lookToDirectionAcceleration, resourceItemSocketName),
-	BowWeapon(bowWeapon)
+	BowWeapon(bowWeapon),
+	LetTheArrowFlyFunction(letTheArrowFlyFunction)
 {
 	//
 }
@@ -29,26 +33,9 @@ void UArcherPlayerCharacterClass::Initialize(const FCharacterClassInitialization
 	Super::Initialize(info);
 }
 
-void UArcherPlayerCharacterClass::LetTheArrowFly()
-{
-	if (!_character->HasAuthority()) return;
-	
-	// TODO(anderson): the intensity should be passed instead of the 1.0f
-	_bowWeapon->FlyArrowFly(_lastKnownDirection.GetTarget(), 1.0f);
-	
-	_finishedReleasingArrow = false;
-
-	ReplicateLetTheArrowFly_Clients();
-}
-
 void UArcherPlayerCharacterClass::ReleaseArrowFinished()
 {
 	_finishedReleasingArrow = true;
-}
-
-void UArcherPlayerCharacterClass::ReplicateLetTheArrowFly_Clients_Implementation()
-{
-	Super::PrimaryAttack(false, true);
 }
 
 FVector2D UArcherPlayerCharacterClass::GetMovementDirection(const FVector2D& direction)
@@ -84,18 +71,48 @@ void UArcherPlayerCharacterClass::Initialize(const FArcherCharacterClassInitiali
 
 	_lastKnownDirection.SetAcceleration(5.0f);
 	
-	_bowWeapon = info.BowWeapon;
-	
 	if (_controller.IsValid())
 	{
 		_cameraActor = _controller->GetCameraActor();
 	}
 
+	_animInstance->ReleaseArrow = [this] { LetTheArrowFly(); };
+	_animInstance->ReleaseArrowFinished = [this] { ReleaseArrowFinished(); };
+
+	_bowWeapon = info.BowWeapon;
+	_letTheArrowFlyFunction = info.LetTheArrowFlyFunction;
+
 	_bowWeapon->SetActorHiddenInGame(false);
 
-	_animInstance->ReleaseArrow = [this] { LetTheArrowFly(); };
+	_primaryAttackSwitcher = TLocalRoleHelper<UArcherPlayerCharacterClass, bool, const bool>()
+		.AutonomousProxy([this](const bool attack)
+		{
+			if (_animInstance->IsCarryingItem()) return false;
+
+			return Super::PrimaryAttack(attack);
+		})
+		.Authority([this](const bool attack)
+		{
+			if (_animInstance->IsCarryingItem()) return false;
 	
-	_animInstance->ReleaseArrowFinished = [this] { ReleaseArrowFinished(); };
+			if (!attack && !_bowWeapon->CanFlyArrow()) return false;
+
+			if (Super::PrimaryAttack(attack))
+			{
+				if (attack)
+				{
+					_lastKnownDirection = _character->GetActorRotation().Vector();
+				}
+				else
+				{
+					_finishedReleasingArrow = false;
+				}
+
+				return true;
+			}
+
+			return false;
+		});
 }
 
 void UArcherPlayerCharacterClass::DeInitialize()
@@ -125,27 +142,21 @@ FVector2D UArcherPlayerCharacterClass::GetAimDirection() const
 	return _lastKnownDirection;
 }
 
-bool UArcherPlayerCharacterClass::PrimaryAttack(const bool pressed, const bool isReplicated)
+void UArcherPlayerCharacterClass::LetTheArrowFly()
 {
-	if (_animInstance->IsCarryingItem()) return false;
+	if (!_character->HasAuthority()) return;
 	
-	if (!pressed && !_bowWeapon->CanFlyArrow()) return false;
+	// TODO(anderson): the intensity should be passed instead of the 1.0f
+	_bowWeapon->FlyArrowFly(_lastKnownDirection.GetTarget(), 1.0f);
+	
+	_finishedReleasingArrow = false;
 
-	if (Super::PrimaryAttack(pressed, isReplicated))
-	{
-		if (pressed)
-		{
-			_lastKnownDirection = _character->GetActorRotation().Vector();
-		}
-		else
-		{
-			_finishedReleasingArrow = false;
-		}
+	_letTheArrowFlyFunction.Switch(_character.Get());
+}
 
-		return true;
-	}
-
-	return false;
+bool UArcherPlayerCharacterClass::PrimaryAttack(const bool pressed)
+{
+	return _primaryAttackSwitcher.Switch(_character.Get(), pressed);
 }
 
 ECharacterClassType UArcherPlayerCharacterClass::GetClassType() const

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "PlayerCharacterClassBase.h"
+#include "Misc/NetHelpers.h"
 #include "Misc/Vectors.h"
 #include "ArcherPlayerCharacterClass.generated.h"
 
@@ -11,6 +12,7 @@ class ABowActorBase;
 struct STACKOBOT_API FArcherCharacterClassInitializationInfo : FCharacterClassInitializationInfo
 {
 	const TWeakObjectPtr<ABowActorBase>& BowWeapon;
+	const TLocalRoleHelper<APlayerCharacterBase, void>& LetTheArrowFlyFunction;
 
 	FArcherCharacterClassInitializationInfo(
 		const TWeakObjectPtr<APlayerCharacterControllerBase>& controller,
@@ -19,7 +21,8 @@ struct STACKOBOT_API FArcherCharacterClassInitializationInfo : FCharacterClassIn
 		const float movementSpeedDebuff,
 		const float lookToDirectionAcceleration,
 		const FName& resourceItemSocketName,
-		const TWeakObjectPtr<ABowActorBase>& bowWeapon);
+		const TWeakObjectPtr<ABowActorBase>& bowWeapon,
+		const TLocalRoleHelper<APlayerCharacterBase, void>& letTheArrowFlyFunction);
 };
 
 UCLASS()
@@ -32,14 +35,13 @@ class STACKOBOT_API UArcherPlayerCharacterClass : public UPlayerCharacterClassBa
 	
 	TWeakObjectPtr<APlayerCameraActor> _cameraActor;
 	TWeakObjectPtr<ABowActorBase> _bowWeapon;
+	
+	TLocalRoleHelper<APlayerCharacterBase, void> _letTheArrowFlyFunction;
+	TLocalRoleHelper<UArcherPlayerCharacterClass, bool, const bool> _primaryAttackSwitcher;
 
 	virtual void Initialize(const FCharacterClassInitializationInfo& info) override;
 
-	void LetTheArrowFly();
 	void ReleaseArrowFinished();
-
-	UFUNCTION(NetMulticast, Unreliable)
-	void ReplicateLetTheArrowFly_Clients();
 
 protected:
 	virtual FVector2D GetMovementDirection(const FVector2D& direction) override;
@@ -53,8 +55,9 @@ public:
 
 	virtual void SetAimDirection(const FVector2D& directionVector) override;
 	virtual FVector2D GetAimDirection() const override;
+	virtual void LetTheArrowFly() override;
 
-	virtual bool PrimaryAttack(const bool pressed, const bool isReplicated) override;
+	virtual bool PrimaryAttack(const bool pressed) override;
 	
 	virtual ECharacterClassType GetClassType() const override;
 };

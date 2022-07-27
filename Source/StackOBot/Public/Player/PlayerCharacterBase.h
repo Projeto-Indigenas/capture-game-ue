@@ -30,8 +30,9 @@ class STACKOBOT_API APlayerCharacterBase : public ACharacter, public IHittable
 	UPROPERTY()
 	UPlayerCharacterClassBase* _playerCharacterClass;
 
-	TLocalRoleHelper<APlayerCharacterBase, const FVector2D&> _setMovementDirectionSwitcher;
-	TLocalRoleHelper<APlayerCharacterBase, const bool> _primaryAttackSwitcher;
+	TLocalRoleHelper<APlayerCharacterBase, void, const FVector2D&> _setMovementDirectionSwitcher;
+	TLocalRoleHelper<APlayerCharacterBase, void, const bool> _primaryAttackSwitcher;
+	TLocalRoleHelper<APlayerCharacterBase, void> _letTheArrowFlySwitcher;
 	
 	void LogOnScreen(const FString& message) const;
 
@@ -61,7 +62,9 @@ class STACKOBOT_API APlayerCharacterBase : public ACharacter, public IHittable
 
 	UFUNCTION(NetMulticast, Reliable)
 	void ReplicateDropItem_Clients(AConstructionResourcePieceActorBase* piece);
-	// end TODO
+	
+	UFUNCTION(NetMulticast, Unreliable)
+	void ReplicateLetTheArrowFly_Clients();
 	
 	void CharacterDied() const;
 	void PickDropItem();

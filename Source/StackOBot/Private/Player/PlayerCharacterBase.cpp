@@ -85,6 +85,14 @@ void APlayerCharacterBase::ReplicateDropItem_Clients_Implementation(AConstructio
 	_playerCharacterClass->DropItem(piece);
 }
 
+void APlayerCharacterBase::ReplicateLetTheArrowFly_Clients_Implementation()
+{
+	if (UArcherPlayerCharacterClass* archer = Cast<UArcherPlayerCharacterClass>(_playerCharacterClass))
+	{
+		archer->LetTheArrowFly();
+	}
+}
+
 void APlayerCharacterBase::CharacterDied() const
 {
 	LogOnScreen(TEXT("Setting character to ragdoll on death"));
@@ -147,7 +155,8 @@ void APlayerCharacterBase::CreateOrUpdateCharacterClass()
 				_movementSpeedDebuff,
 				_lookToDirectionAcceleration,
 				_resourceItemSocketName,
-				GetTheBow());
+				GetTheBow(),
+				_letTheArrowFlySwitcher);
 
 			characterClass->Initialize(classInfo);
 
@@ -202,12 +211,14 @@ void APlayerCharacterBase::Initialize(APlayerCharacterControllerBase* controller
 
 	CreateOrUpdateCharacterClass();
 
-	_setMovementDirectionSwitcher = TLocalRoleHelper<APlayerCharacterBase, const FVector2D&>()
+	_setMovementDirectionSwitcher = TLocalRoleHelper<APlayerCharacterBase, void, const FVector2D&>()
 		.AutonomousProxy(this, &APlayerCharacterBase::ReplicateSetMovementDirection_Server)
 		.Authority(this, &APlayerCharacterBase::ReplicateSetMovementDirection_Clients);
-	_primaryAttackSwitcher = TLocalRoleHelper<APlayerCharacterBase, const bool>()
+	_primaryAttackSwitcher = TLocalRoleHelper<APlayerCharacterBase, void, const bool>()
 		.AutonomousProxy(this, &APlayerCharacterBase::ReplicatePrimaryAttack_Server)
 		.Authority(this, &APlayerCharacterBase::ReplicatePrimaryAttack_Clients);
+	_letTheArrowFlySwitcher = TLocalRoleHelper<APlayerCharacterBase, void>()
+		.Authority(this, &APlayerCharacterBase::ReplicateLetTheArrowFly_Clients);
 }
 
 void APlayerCharacterBase::Tick(float deltaSeconds)
@@ -282,9 +293,10 @@ void APlayerCharacterBase::PrimaryAttack(const bool pressed) const
 {
 	if (!IsValid(_playerCharacterClass)) return;
 
-	_playerCharacterClass->PrimaryAttack(pressed, false);
-
-	_primaryAttackSwitcher.Switch(this, pressed);
+	if (_playerCharacterClass->PrimaryAttack(pressed))
+	{
+		_primaryAttackSwitcher.Switch(this, pressed);
+	}
 }
 
 void APlayerCharacterBase::RequestJump() const
